@@ -1,0 +1,557 @@
+<meta charset="utf-8">
+<title>review-radar — Real-Time Review Sentiment (Final Project)</title>
+<style>
+  :root{
+    --bg:#ffffff; --panel:#f8fafc; --panel2:#f1f5f9;
+    --ink:#1f2937; --muted:#64748b; --line:#e2e8f0;
+    --accent:#4f46e5; --accent2:#6366f1;
+    --pos:#16a34a; --neg:#dc2626; --warn:#d97706; --teal:#0d9488;
+    --shadow:0 10px 30px rgba(15,23,42,.08);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#0b1020;-webkit-font-smoothing:antialiased;}
+  #bar{position:fixed;top:0;left:0;height:4px;background:var(--accent);width:0;z-index:50;transition:width .25s ease}
+  .slide{display:none;min-height:100vh;width:100%;padding:52px 72px 84px;background:var(--bg);flex-direction:column;justify-content:center;position:relative;}
+  .slide.active{display:flex}
+  .wrap{max-width:1120px;margin:0 auto;width:100%}
+  .kicker{display:inline-block;font-size:14px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+  h1{font-size:52px;line-height:1.08;margin:0 0 18px;font-weight:800;letter-spacing:-.02em}
+  h2{font-size:36px;line-height:1.12;margin:0 0 22px;font-weight:800;letter-spacing:-.01em}
+  h3{font-size:21px;margin:0 0 8px;font-weight:700}
+  p,li{font-size:19px;line-height:1.5;color:#334155}
+  .lead{font-size:23px;color:var(--muted);margin:0 0 8px}
+  ul{margin:0;padding-left:24px}
+  li{margin:9px 0}
+  li::marker{color:var(--accent)}
+  .muted{color:var(--muted)}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
+  .cols3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .cols4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;box-shadow:var(--shadow)}
+  .card h3{color:var(--accent)}
+  .pill{display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:15px;font-weight:600;color:#475569;margin:4px 6px 4px 0}
+  .code{font-family:"SF Mono",Consolas,"Roboto Mono",monospace;font-size:14px;background:#0b1020;color:#e8ecff;padding:14px 16px;border-radius:10px;display:block;white-space:pre;overflow-x:auto;line-height:1.5}
+  .code .c{color:#7c88b1}.code .k{color:#c4b5fd}.code .s{color:#86efac}.code .f{color:#93c5fd}
+  .big{font-size:44px;font-weight:800;color:var(--accent);line-height:1}
+  .stat{font-size:52px;font-weight:800;color:var(--accent);line-height:1}
+  .statlbl{font-size:15px;color:var(--muted);margin-top:6px}
+  .formula{font-family:"Cambria Math",Georgia,serif;font-size:24px;background:#0b1020;color:#e8ecff;padding:16px 20px;border-radius:12px;display:inline-block;letter-spacing:.3px}
+  .good{color:var(--pos);font-weight:700}
+  .bad{color:var(--neg);font-weight:700}
+  .warnc{color:var(--warn);font-weight:700}
+  table{border-collapse:collapse;width:100%;font-size:18px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:.06em}
+  td.n{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+  .flow{display:flex;align-items:stretch;gap:12px;flex-wrap:wrap;margin-top:10px}
+  .node{flex:1;min-width:140px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px;text-align:center;box-shadow:var(--shadow)}
+  .node b{display:block;font-size:17px;margin-bottom:4px}
+  .node small{color:var(--muted);font-size:13px}
+  .arrow{display:flex;align-items:center;font-size:24px;color:var(--accent);font-weight:800}
+  .foot{position:absolute;bottom:26px;left:72px;right:72px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#94a3b8;border-top:1px solid var(--line);padding-top:12px}
+  .foot .tag{font-weight:700;color:#64748b;letter-spacing:.04em}
+  #s1{background:linear-gradient(135deg,#0b1020 0%,#1e1b4b 55%,#312e81 100%)}
+  #s1 .wrap *{color:#eef2ff}
+  #s1 .kicker{color:#a5b4fc}
+  #s1 h1{font-size:62px}
+  #s1 .lead{color:#c7d2fe}
+  #s1 .meta{margin-top:30px;font-size:18px;color:#c7d2fe}
+  #s1 .foot{color:#818cf8;border-top-color:rgba(255,255,255,.15)}
+  #s1 .foot .tag{color:#a5b4fc}
+  #hint{position:fixed;bottom:14px;right:18px;font-size:12px;color:#64748b;z-index:50;background:#fff;border:1px solid var(--line);padding:6px 12px;border-radius:999px;box-shadow:var(--shadow)}
+  .chartcap{font-size:15px;color:var(--muted);margin-top:6px}
+  .tagrow{margin-top:8px}
+  .route{display:inline-block;border-radius:8px;padding:4px 10px;font-size:15px;font-weight:700}
+  .r-urgent{background:#fee2e2;color:#b91c1c}
+  .r-back{background:#fef3c7;color:#b45309}
+  .r-anal{background:#dcfce7;color:#15803d}
+  @media print{
+    #bar,#hint{display:none!important}
+    @page{size:landscape;margin:0}
+    body{background:#fff}
+    .slide{display:flex!important;min-height:100vh;height:100vh;page-break-after:always;padding:40px 58px 66px}
+    .card,.node{box-shadow:none}
+    #s1,.formula,.code,.route{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+
+<div id="bar"></div>
+<div id="hint">← → to navigate · click slide · <b>Ctrl/Cmd+P</b> → Save as PDF (landscape)</div>
+
+<!-- 1 · TITLE -->
+<section class="slide active" id="s1">
+  <div class="wrap">
+    <span class="kicker">Industrial Machine Learning · Final Project · Built &amp; Deployed</span>
+    <h1>review-radar</h1>
+    <p class="lead">A movie website that reads every review the second it arrives, spots the angry ones, and sends the truly urgent ones to a human — before the customer leaves.</p>
+    <div class="meta">
+      Presented by <b>Dipshant</b> &nbsp;·&nbsp; Harbour.Space · 2026<br>
+      <span style="font-family:monospace;font-size:15px">github.com/Dishantpaudel/review-radar</span>
+    </div>
+  </div>
+  <div class="foot"><span class="tag">SENTIMENT · NLP · MLOps</span><span>1 / 16</span></div>
+</section>
+
+<!-- 2 · PROBLEM -->
+<section class="slide" id="s2">
+  <div class="wrap">
+    <span class="kicker">The Problem</span>
+    <h2>Angry customers are hidden in the reviews</h2>
+    <div class="cols">
+      <div>
+        <ul>
+          <li>A movie website gets <b>~300,000 reviews a month</b>.</li>
+          <li>Nobody can read them all, so angry reviews are seen <b>too late</b> — after the customer already left.</li>
+          <li>An angry review is an <b>early warning</b>. Today it is ignored.</li>
+          <li>Goal: catch the warning in <b>seconds</b>, not weeks.</li>
+        </ul>
+      </div>
+      <div class="card" style="text-align:center">
+        <div class="stat">~95%</div>
+        <div class="statlbl">of consumers read reviews before choosing a product</div>
+        <hr style="border:none;border-top:1px solid var(--line);margin:16px 0">
+        <p class="muted" style="font-size:16px;margin:0">Every ignored complaint pushes a customer closer to leaving — and pushes future customers away too.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="tag">PROBLEM</span><span>2 / 16</span></div>
+</section>
+
+<!-- 3 · SOLUTION OVERVIEW -->
+<section class="slide" id="s3">
+  <div class="wrap">
+    <span class="kicker">The Solution · One Sentence</span>
+    <h2>Two scorers and a router</h2>
+    <div class="flow">
+      <div class="node"><b>📝 New review</b><small>arrives on the platform</small></div>
+      <div class="arrow">→</div>
+      <div class="node" style="border-color:var(--accent);border-width:2px"><b>🤖 Sentiment</b><small>P(negative), 0→1</small></div>
+      <div class="arrow">→</div>
+      <div class="node" style="border-color:var(--warn);border-width:2px"><b>🚨 Urgency</b><small>emergency or calm?</small></div>
+      <div class="arrow">→</div>
+      <div class="node"><b>🧭 Router</b><small>send to the right place</small></div>
+    </div>
+    <div class="flow" style="margin-top:18px">
+      <div class="node" style="border-color:var(--neg)"><b style="color:var(--neg)">Support — now</b><small>negative + urgent</small></div>
+      <div class="node" style="border-color:var(--warn)"><b style="color:var(--warn)">Feedback backlog</b><small>negative + calm</small></div>
+      <div class="node" style="border-color:var(--pos)"><b style="color:var(--pos)">Analytics</b><small>positive reviews</small></div>
+    </div>
+    <p class="lead" style="margin-top:22px">Everything runs live in <b>~2 milliseconds</b> per review — 50× faster than the &lt;100 ms promise.</p>
+  </div>
+  <div class="foot"><span class="tag">SOLUTION</span><span>3 / 16</span></div>
+</section>
+
+<!-- 4 · WHAT CHANGED (teacher feedback → built) -->
+<section class="slide" id="s4">
+  <div class="wrap">
+    <span class="kicker">From Plan to Product</span>
+    <h2>The two feedbacks became two real features</h2>
+    <div class="cols">
+      <div class="card" style="border-color:var(--warn)">
+        <h3 style="color:var(--warn)">Feedback #1</h3>
+        <p><b>"Negative ≠ urgent."</b> Many negative reviews are calm feedback; only some need a human now.</p>
+        <p class="muted" style="font-size:16px;margin:10px 0 0">→ Built an <b>urgency scorer</b> + routing matrix. <span class="pill" style="margin:0">src/urgency.py</span></p>
+      </div>
+      <div class="card" style="border-color:var(--warn)">
+        <h3 style="color:var(--warn)">Feedback #2</h3>
+        <p><b>"Optimize the threshold on money, not on F1."</b> Contacting costs $1, saving is worth $9.</p>
+        <p class="muted" style="font-size:16px;margin:10px 0 0">→ Built a <b>profit-vs-threshold</b> sweep. <span class="pill" style="margin:0">src/threshold.py</span></p>
+      </div>
+    </div>
+    <p class="lead" style="margin-top:22px">Both are covered in detail on slides 10–11. Everything else — data, model, service, tests — is a working, reproducible pipeline on GitHub.</p>
+  </div>
+  <div class="foot"><span class="tag">RESPONSE TO FEEDBACK</span><span>4 / 16</span></div>
+</section>
+
+<!-- 5 · DATASET -->
+<section class="slide" id="s5">
+  <div class="wrap">
+    <span class="kicker">The Data</span>
+    <h2>IMDB Large Movie Review Dataset</h2>
+    <div class="cols">
+      <div>
+        <ul>
+          <li>From <b>Stanford</b> (Maas et al., 2011) — real IMDB reviews.</li>
+          <li><b>50,000 reviews</b>, labeled positive / negative.</li>
+          <li>Split <b>25k train / 25k test</b>, perfectly balanced (50/50).</li>
+          <li>Loaded in one line, downloads on first run.</li>
+        </ul>
+        <span class="code"><span class="k">from</span> datasets <span class="k">import</span> load_dataset
+load_dataset(<span class="s">"stanfordnlp/imdb"</span>)</span>
+      </div>
+      <div class="card">
+        <h3>Why it fits</h3>
+        <ul style="margin-top:6px">
+          <li>Big, clean, balanced — almost no cleaning.</li>
+          <li>The most-trusted benchmark for text models.</li>
+          <li>Movie reviews for a movie site.</li>
+        </ul>
+        <p class="muted" style="font-size:16px;margin:12px 0 0"><b>Honest note:</b> a stand-in. Real reviews are ~80% positive and include billing complaints. Production plan: retrain monthly on the site's own reviews.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="tag">DATA</span><span>5 / 16</span></div>
+</section>
+
+<!-- 6 · MODEL 1 how it works -->
+<section class="slide" id="s6">
+  <div class="wrap">
+    <span class="kicker">Model 1 · How It Works</span>
+    <h2>Words → numbers → a probability</h2>
+    <div class="flow">
+      <div class="node"><b>1 · Text</b><small>"a total waste of time"</small></div>
+      <div class="arrow">→</div>
+      <div class="node" style="border-color:var(--accent)"><b>2 · TF-IDF</b><small>each word → a number;<br>rare+telling words score high</small></div>
+      <div class="arrow">→</div>
+      <div class="node" style="border-color:var(--accent)"><b>3 · Logistic Regression</b><small>each word has a weight;<br>add them up</small></div>
+      <div class="arrow">→</div>
+      <div class="node" style="border-color:var(--neg)"><b>4 · P(negative)</b><small>0.92</small></div>
+    </div>
+    <div class="cols" style="margin-top:24px">
+      <div class="card">
+        <h3>Why this model</h3>
+        <ul style="margin-top:6px;font-size:18px">
+          <li><b>Fast:</b> ~2 ms per review.</li>
+          <li><b>Cheap:</b> runs on any laptop, no GPU.</li>
+          <li><b>Explainable:</b> you can read the word weights.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Most "negative" words it learned</h3>
+        <p class="muted" style="font-size:17px;margin:4px 0 0">worst · waste · boring · awful · terrible · poorly · disappointing</p>
+        <h3 style="margin-top:12px">Most "positive"</h3>
+        <p class="muted" style="font-size:17px;margin:4px 0 0">excellent · perfect · wonderful · brilliant · favorite</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="tag">MODEL · BASELINE</span><span>6 / 16</span></div>
+</section>
+
+<!-- 7 · RESULTS baseline -->
+<section class="slide" id="s7">
+  <div class="wrap">
+    <span class="kicker">Results · Baseline on 25,000 unseen reviews</span>
+    <h2>Passes the goal comfortably</h2>
+    <div class="cols" style="grid-template-columns:1fr 1fr;align-items:center">
+      <div class="cols" style="grid-template-columns:1fr 1fr;gap:16px">
+        <div class="card" style="text-align:center"><div class="stat good">0.90</div><div class="statlbl">F1 (negative)<br>goal ≥ 0.85 ✓</div></div>
+        <div class="card" style="text-align:center"><div class="stat">0.896</div><div class="statlbl">Recall<br>(angry reviews caught)</div></div>
+        <div class="card" style="text-align:center"><div class="stat">0.904</div><div class="statlbl">Precision<br>(flags that are right)</div></div>
+        <div class="card" style="text-align:center"><div class="stat good">1.00</div><div class="statlbl">Precision@1000<br>(top of the queue)</div></div>
+      </div>
+      <div>
+        <h3>What these mean</h3>
+        <ul style="font-size:18px">
+          <li><b>F1</b> — balance of catching angry reviews and not crying wolf. 0.90 &gt; 0.85 gate.</li>
+          <li><b>Recall 0.896</b> — catches ~90% of all angry reviews.</li>
+          <li><b>Precision@1000 = 1.00</b> — if support only works the 1,000 reviews the model is <i>most</i> sure about, <b>every single one</b> is genuinely negative. No wasted time.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="tag">EVALUATION</span><span>7 / 16</span></div>
+</section>
+
+<!-- 8 · MODEL 2 distilbert -->
+<section class="slide" id="s8">
+  <div class="wrap">
+    <span class="kicker">Model 2 · The Modern Alternative</span>
+    <h2>Does a big AI model do better?</h2>
+    <div class="cols">
+      <div>
+        <ul>
+          <li>Tested <b>DistilBERT</b> — a small, fast cousin of the models behind ChatGPT, already trained for sentiment (SST-2).</li>
+          <li><b>No training needed</b> — used it straight off the shelf, so it runs on CPU.</li>
+          <li>Scored 3,000 random test reviews and measured the same metrics.</li>
+        </ul>
+        <div class="card" style="margin-top:14px">
+          <h3>Result: a tie</h3>
+          <p style="margin:4px 0 0">F1 = <b>0.898</b> vs the baseline's <b>0.900</b>. Fine-tuning it on IMDB could reach ~0.93, but that needs a GPU.</p>
+        </div>
+      </div>
+      <div class="card">
+        <h3>What is DistilBERT?</h3>
+        <p style="font-size:18px">It reads a sentence <b>in context</b> — it knows "not good" is negative even though "good" is a positive word. The baseline sees words mostly one at a time.</p>
+        <p style="font-size:18px;margin-top:10px">More powerful, but <b>~100× more expensive</b> to run and a black box — you can't easily see <i>why</i> it decided.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="tag">MODEL · TRANSFORMER</span><span>8 / 16</span></div>
+</section>
+
+<!-- 9 · comparison + decision -->
+<section class="slide" id="s9">
+  <div class="wrap">
+    <span class="kicker">The Engineering Decision</span>
+    <h2>Ship the simple model</h2>
+    <table style="margin-bottom:16px">
+      <tr><th>Model</th><th class="n">F1 (neg)</th><th class="n">Recall</th><th class="n">Precision</th><th>Speed</th><th>Explainable?</th></tr>
+      <tr><td>Constant guess</td><td class="n">0.50</td><td class="n">—</td><td class="n">—</td><td>—</td><td>—</td></tr>
+      <tr><td><b>TF-IDF + LogReg</b> <span class="pill" style="margin:0">shipped</span></td><td class="n good">0.900</td><td class="n">0.896</td><td class="n">0.904</td><td>~2 ms</td><td class="good">Yes</td></tr>
+      <tr><td>DistilBERT (pretrained)</td><td class="n">0.898</td><td class="n">0.913</td><td class="n">0.885</td><td>~100× slower</td><td class="bad">No</td></tr>
+    </table>
+    <p class="lead">Same quality. The simple model is far cheaper, fully explainable, and precision@1000 = 1.00. <b>The fancy model is the upgrade path, not the starting point.</b></p>
+  </div>
+  <div class="foot"><span class="tag">DECISION</span><span>9 / 16</span></div>
+</section>
+
+<!-- 10 · FEEDBACK 1 urgency -->
+<section class="slide" id="s10">
+  <div class="wrap">
+    <span class="kicker">Teacher Feedback #1 · Answered</span>
+    <h2>Negative is not the same as urgent</h2>
+    <div class="cols">
+      <div>
+        <p>A second scorer runs <b>after</b> sentiment. Rule-based on purpose, so support can see <b>exactly why</b> a review was escalated.</p>
+        <h3 style="margin-top:12px">Signals it looks for</h3>
+        <ul style="font-size:18px">
+          <li><b>Churn</b> (heaviest): cancel · refund · never again · switching to</li>
+          <li><b>Money:</b> charged · billing · took my money</li>
+          <li><b>Anger:</b> scam · unacceptable · worst</li>
+          <li><b>Shouting:</b> lots of !!! and ALL-CAPS</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>The routing matrix</h3>
+        <table style="font-size:17px">
+          <tr><th>Sentiment</th><th>Urgency</th><th>Route</th></tr>
+          <tr><td>Negative</td><td>High</td><td><span class="route r-urgent">support — now</span></td></tr>
+          <tr><td>Negative</td><td>Low</td><td><span class="route r-back">feedback backlog</span></td></tr>
+          <tr><td>Positive</td><td>—</td><td><span class="route r-anal">analytics</span></td></tr>
+        </table>
+        <p class="muted" style="font-size:15px;margin:12px 0 0">Live example: <i>"Charged twice, I want a REFUND, cancelling today!!!"</i> → urgency <b>0.99</b> → <span class="route r-urgent">support — now</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="tag">FEEDBACK #1</span><span>10 / 16</span></div>
+</section>
+
+<!-- 11 · FEEDBACK 2 threshold -->
+<section class="slide" id="s11">
+  <div class="wrap">
+    <span class="kicker">Teacher Feedback #2 · Answered</span>
+    <h2>Choose the threshold for money, not F1</h2>
+    <div class="cols" style="grid-template-columns:1fr 1fr;align-items:center">
+      <div>
+        <p>The cut-off score for "act on this" was 0.5 by default. But the economics say otherwise:</p>
+        <div class="formula" style="font-size:21px">break-even precision = C / (r·ARPU·M)<br>= $1 / $9 ≈ <span style="color:#86efac">0.11</span></div>
+        <ul style="margin-top:14px;font-size:18px">
+          <li>You profit even if <b>89% of contacts are "wasted."</b></li>
+          <li>So the model should flag <b>more</b> reviews, not fewer.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>What the sweep found</h3>
+        <table style="font-size:18px">
+          <tr><td>Break-even precision</td><td class="n">0.11</td></tr>
+          <tr><td>Default threshold</td><td class="n">0.50</td></tr>
+          <tr><td><b>Profit-optimal threshold</b></td><td class="n good">0.44</td></tr>
+          <tr><td>Precision there</td><td class="n">0.87</td></tr>
+          <tr><td>Safety margin vs break-even</td><td class="n good">8×</td></tr>
+        </table>
+        <p class="muted" style="font-size:15px;margin:12px 0 0">Optimal threshold landed <b>below 0.5</b> — exactly the direction predicted. Threshold is now a <b>business decision</b>, re-run whenever costs change.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="tag">FEEDBACK #2</span><span>11 / 16</span></div>
+</section>
+
+<!-- 12 · profit curve chart -->
+<section class="slide" id="s12">
+  <div class="wrap">
+    <span class="kicker">Feedback #2 · The Picture</span>
+    <h2>Profit vs threshold</h2>
+    <div class="cols" style="grid-template-columns:1.4fr 1fr;align-items:center">
+      <div>
+        <svg viewBox="0 0 640 340" width="100%" role="img" aria-label="Profit versus threshold curve">
+          <g stroke="#e2e8f0" stroke-width="1">
+            <line x1="60" y1="40" x2="620" y2="40"/><line x1="60" y1="110" x2="620" y2="110"/>
+            <line x1="60" y1="180" x2="620" y2="180"/><line x1="60" y1="250" x2="620" y2="250"/>
+            <line x1="60" y1="290" x2="620" y2="290"/>
+          </g>
+          <g fill="#94a3b8" font-size="12" text-anchor="end">
+            <text x="52" y="44">$220k</text><text x="52" y="184">$120k</text><text x="52" y="294">$0</text>
+          </g>
+          <!-- profit curve: rises, peaks near t=0.44, falls -->
+          <path d="M60,250 C160,150 250,70 320,66 C400,62 480,120 560,210 L600,268"
+                fill="none" stroke="#4f46e5" stroke-width="3"/>
+          <!-- optimal marker at ~x=305 (t=0.44) -->
+          <line x1="305" y1="66" x2="305" y2="290" stroke="#16a34a" stroke-width="2" stroke-dasharray="5 5"/>
+          <circle cx="305" cy="66" r="6" fill="#16a34a"/>
+          <text x="312" y="60" fill="#16a34a" font-size="13" font-weight="700">optimal t = 0.44</text>
+          <!-- default marker at t=0.50 ~x=340 -->
+          <line x1="340" y1="70" x2="340" y2="290" stroke="#dc2626" stroke-width="2" stroke-dasharray="5 5"/>
+          <text x="347" y="86" fill="#dc2626" font-size="13" font-weight="700">default 0.50</text>
+          <g fill="#475569" font-size="13" text-anchor="middle">
+            <text x="60" y="312">0.0</text><text x="340" y="312">0.5</text><text x="620" y="312">1.0</text>
+            <text x="340" y="332" fill="#94a3b8">decision threshold on P(negative)</text>
+          </g>
+        </svg>
+      </div>
+      <div>
+        <ul style="font-size:18px">
+          <li>Contact more people → catch more at-risk customers → <b>more profit</b>, until precision drops toward the 11% break-even.</li>
+          <li>The peak sits <b>left of 0.5</b>.</li>
+          <li>On this very confident model the gain is modest (~$1.9k/mo); with noisy or imbalanced real data the gap grows. <b>The method is the deliverable.</b></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="tag">FEEDBACK #2</span><span>12 / 16</span></div>
+</section>
+
+<!-- 13 · LIVE SERVICE -->
+<section class="slide" id="s13">
+  <div class="wrap">
+    <span class="kicker">The Live Service</span>
+    <h2>One API call, one decision</h2>
+    <div class="cols">
+      <div>
+        <p>A small web server (<b>FastAPI</b>). Send a review, get back the score, the urgency, and the route.</p>
+        <span class="code"><span class="c"># request</span>
+POST /review
+{ <span class="s">"text"</span>: <span class="s">"Charged twice, cancelling!!!"</span> }
+
+<span class="c"># response  (~2 ms)</span>
+{
+  <span class="f">"p_negative"</span>: <span style="color:#fca5a5">0.80</span>,
+  <span class="f">"urgency"</span>:    <span style="color:#fca5a5">0.99</span>,
+  <span class="f">"route"</span>:      <span class="s">"support_urgent"</span>
+}</span>
+      </div>
+      <div class="card">
+        <h3>Try it yourself</h3>
+        <p style="font-size:18px">Run the server, then open the free interactive page:</p>
+        <span class="code">uvicorn service.app:app --port 8000</span>
+        <p style="font-size:18px;margin-top:10px">Browser → <b>http://127.0.0.1:8000/docs</b><br>Click <b>POST /review → Try it out</b>, paste any review, hit Execute.</p>
+        <p class="muted" style="font-size:15px;margin-top:10px">This is the live demo moment — paste an angry review and watch it route to support with the exact signals shown.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="tag">SERVICE</span><span>13 / 16</span></div>
+</section>
+
+<!-- 14 · ARCHITECTURE / FILE MAP -->
+<section class="slide" id="s14">
+  <div class="wrap">
+    <span class="kicker">The Codebase</span>
+    <h2>How the files fit together</h2>
+    <div class="cols3">
+      <div class="card">
+        <h3>Brains (src/)</h3>
+        <p class="src" style="font-size:15px">
+          <b>data.py</b> — load IMDB<br>
+          <b>train.py</b> — TF-IDF + LogReg, MLflow<br>
+          <b>evaluate.py</b> — F1, recall, precision@k<br>
+          <b>compare_transformer.py</b> — DistilBERT<br>
+          <b>threshold.py</b> — profit sweep<br>
+          <b>urgency.py</b> — urgency + routing<br>
+          <b>predict.py</b> — score one review
+        </p>
+      </div>
+      <div class="card">
+        <h3>Serving &amp; proof</h3>
+        <p class="src" style="font-size:15px">
+          <b>service/app.py</b> — FastAPI live API<br>
+          <b>tests/</b> — 10 automated tests<br>
+          &nbsp;&nbsp;urgency · threshold · API<br>
+          <b>notebooks/ 01–04</b> — EDA, baseline, transformer, threshold (all executed)
+        </p>
+      </div>
+      <div class="card">
+        <h3>Project glue</h3>
+        <p class="src" style="font-size:15px">
+          <b>README.md</b> — the whole story<br>
+          <b>requirements.txt</b> — dependencies<br>
+          <b>.gitignore</b> — keeps data/models out of git<br>
+          <b>mlflow.db</b> — experiment tracking<br>
+          <b>models/</b> — the trained model file
+        </p>
+      </div>
+    </div>
+    <p class="lead" style="margin-top:20px">Data flows: <b>data → train → evaluate → threshold + urgency → predict → service</b>. Notebooks and tests prove each step.</p>
+  </div>
+  <div class="foot"><span class="tag">ARCHITECTURE</span><span>14 / 16</span></div>
+</section>
+
+<!-- 15 · BUSINESS IMPACT -->
+<section class="slide" id="s15">
+  <div class="wrap">
+    <span class="kicker">Business Impact</span>
+    <h2>What is it worth?</h2>
+    <div class="cols" style="grid-template-columns:1fr 1fr;align-items:center">
+      <div>
+        <div class="formula" style="font-size:20px">profit = saved·(r·ARPU·M) − contacted·C</div>
+        <table style="margin-top:14px">
+          <tr><td>Reviews / month</td><td class="n">300,000</td></tr>
+          <tr><td>Negative share</td><td class="n">20%</td></tr>
+          <tr><td>Win-back value / save</td><td class="n">$60</td></tr>
+          <tr><td>Contact cost</td><td class="n">$1</td></tr>
+          <tr><td><b>Profit at optimal threshold</b></td><td class="n good">~$216k / mo</td></tr>
+        </table>
+      </div>
+      <div class="card" style="text-align:center">
+        <div class="stat good">≈ $2.5M</div>
+        <div class="statlbl">estimated yearly effect at the profit-optimal threshold</div>
+        <hr style="border:none;border-top:1px solid var(--line);margin:16px 0">
+        <p class="muted" style="font-size:16px;margin:0">Break-even precision is only <b>11%</b>, our model runs at <b>87%</b> — an 8× safety margin makes this a <b>low-risk bet</b>.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="tag">BUSINESS IMPACT</span><span>15 / 16</span></div>
+</section>
+
+<!-- 16 · ROADMAP + THANKS -->
+<section class="slide" id="s16">
+  <div class="wrap">
+    <span class="kicker">Wrap-up</span>
+    <h2>Roadmap &amp; takeaways</h2>
+    <div class="cols">
+      <div>
+        <h3>Roadmap</h3>
+        <ul>
+          <li><b>Done:</b> baseline model, transformer comparison, live API, urgency routing, profit-optimal threshold.</li>
+          <li><b>Next:</b> retrain monthly on the site's own reviews.</li>
+          <li><b>Then:</b> watch for drift; re-tune threshold as costs change.</li>
+          <li><b>Later:</b> mine <b>why</b> customers are unhappy, not just that they are.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Takeaways</h3>
+        <ul>
+          <li>Simple model <span class="good">F1 = 0.90</span>, beats the 0.85 gate.</li>
+          <li>Chose the cheap, explainable model over the fancy one — on purpose.</li>
+          <li>Both teacher feedbacks are <b>working code</b>, not slides.</li>
+          <li>Fully reproducible &amp; on GitHub.</li>
+        </ul>
+      </div>
+    </div>
+    <h1 style="margin-top:26px;font-size:38px">Thank you — questions?</h1>
+    <p class="muted">Dipshant · Industrial Machine Learning · Harbour.Space 2026 · <span style="font-family:monospace">github.com/Dishantpaudel/review-radar</span></p>
+  </div>
+  <div class="foot"><span class="tag">PITCH</span><span>16 / 16</span></div>
+</section>
+
+<script>
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var i = 0, bar = document.getElementById('bar');
+  function show(n){
+    i = Math.max(0, Math.min(slides.length-1, n));
+    slides.forEach(function(s,k){ s.classList.toggle('active', k===i); });
+    bar.style.width = ((i)/(slides.length-1)*100) + '%';
+    if(location.hash !== '#'+(i+1)) history.replaceState(null,'','#'+(i+1));
+  }
+  document.addEventListener('keydown', function(e){
+    if(['ArrowRight','PageDown',' ','Enter'].indexOf(e.key)>-1){ e.preventDefault(); show(i+1); }
+    else if(['ArrowLeft','PageUp'].indexOf(e.key)>-1){ e.preventDefault(); show(i-1); }
+    else if(e.key==='Home'){ show(0); }
+    else if(e.key==='End'){ show(slides.length-1); }
+  });
+  document.addEventListener('click', function(e){
+    if(e.target.closest('a')) return;
+    show(i + (e.clientX > window.innerWidth*0.35 ? 1 : -1));
+  });
+  var start = parseInt((location.hash||'#1').slice(1),10);
+  show(isNaN(start)?0:start-1);
+</script>

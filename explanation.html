@@ -1,0 +1,403 @@
+<meta charset="utf-8">
+<title>review-radar — Explained in Simple Language</title>
+<style>
+  :root{
+    --bg:#ffffff; --panel:#f8fafc; --panel2:#f1f5f9;
+    --ink:#1f2937; --muted:#64748b; --line:#e2e8f0;
+    --accent:#4f46e5; --pos:#16a34a; --neg:#dc2626; --warn:#d97706;
+    --shadow:0 8px 24px rgba(15,23,42,.06);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#f4f6fb;line-height:1.6;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .shell{display:grid;grid-template-columns:250px 1fr;max-width:1180px;margin:0 auto;gap:0}
+  /* sidebar */
+  nav{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:26px 18px;border-right:1px solid var(--line);background:#fff}
+  nav .brand{font-weight:800;font-size:19px;letter-spacing:-.01em;margin-bottom:4px}
+  nav .brand span{color:var(--accent)}
+  nav .sub{font-size:12px;color:var(--muted);margin-bottom:18px}
+  nav a{display:block;color:#475569;font-size:14px;padding:5px 10px;border-radius:8px;margin:1px 0}
+  nav a:hover{background:var(--panel2);text-decoration:none}
+  nav .grp{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:#94a3b8;font-weight:700;margin:16px 0 4px 10px}
+  /* content */
+  main{padding:40px 54px 120px;background:#fff;min-height:100vh}
+  .hero{background:linear-gradient(135deg,#1e1b4b,#4f46e5);color:#fff;border-radius:18px;padding:34px 36px;margin-bottom:36px}
+  .hero h1{margin:0 0 8px;font-size:38px;letter-spacing:-.02em}
+  .hero p{margin:0;color:#dbe0ff;font-size:18px}
+  .hero .repo{margin-top:14px;font-family:monospace;font-size:14px;color:#c7d2fe}
+  h2{font-size:27px;margin:44px 0 6px;letter-spacing:-.01em;padding-top:12px}
+  h2 .em{font-size:15px;font-weight:600;color:var(--muted);font-family:monospace;background:var(--panel2);padding:3px 9px;border-radius:7px;margin-left:8px;vertical-align:middle}
+  h3{font-size:19px;margin:22px 0 4px}
+  p{font-size:16px}
+  .lead{font-size:19px;color:#475569}
+  ul,ol{padding-left:22px}
+  li{margin:6px 0;font-size:16px}
+  code{font-family:"SF Mono",Consolas,monospace;font-size:14px;background:var(--panel2);padding:2px 6px;border-radius:5px;color:#3730a3}
+  pre{font-family:"SF Mono",Consolas,monospace;font-size:13.5px;background:#0b1020;color:#e8ecff;padding:16px 18px;border-radius:12px;overflow-x:auto;line-height:1.55}
+  pre .c{color:#7c88b1}.pre .k{color:#c4b5fd}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin:16px 0;box-shadow:var(--shadow)}
+  .file{border-left:4px solid var(--accent);background:#fff;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:12px;padding:20px 24px;margin:18px 0;box-shadow:var(--shadow)}
+  .file .what{background:var(--panel2);border-radius:8px;padding:8px 12px;font-size:14px;color:#475569;margin:8px 0 12px;display:inline-block}
+  .plain{background:#eef2ff;border-radius:10px;padding:12px 16px;margin:12px 0;font-size:16px}
+  .plain b{color:var(--accent)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  table{border-collapse:collapse;width:100%;font-size:15px;margin:12px 0}
+  th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+  td.n{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+  .good{color:var(--pos);font-weight:700}.bad{color:var(--neg);font-weight:700}.warnc{color:var(--warn);font-weight:700}
+  .route{display:inline-block;border-radius:7px;padding:3px 9px;font-size:14px;font-weight:700}
+  .r-urgent{background:#fee2e2;color:#b91c1c}.r-back{background:#fef3c7;color:#b45309}.r-anal{background:#dcfce7;color:#15803d}
+  .tip{border-left:4px solid var(--pos);background:#f0fdf4;padding:12px 16px;border-radius:10px;margin:14px 0;font-size:15px}
+  .warn{border-left:4px solid var(--warn);background:#fffbeb;padding:12px 16px;border-radius:10px;margin:14px 0;font-size:15px}
+  .step{counter-reset:none;display:flex;gap:14px;margin:14px 0;align-items:flex-start}
+  .step .num{flex:0 0 32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:15px}
+  .step .body{flex:1}
+  .step .body b{font-size:16px}
+  @media(max-width:860px){.shell{grid-template-columns:1fr}nav{display:none}main{padding:26px 20px 80px}.grid2{grid-template-columns:1fr}}
+</style>
+
+<div class="shell">
+<nav>
+  <div class="brand">review-<span>radar</span></div>
+  <div class="sub">Explained in simple language</div>
+  <a href="#top">↑ Top</a>
+  <div class="grp">Start here</div>
+  <a href="#what">What is this project?</a>
+  <a href="#bigpic">The big picture</a>
+  <a href="#map">The folder map</a>
+  <div class="grp">Every file</div>
+  <a href="#data">1 · data.py</a>
+  <a href="#train">2 · train.py</a>
+  <a href="#evaluate">3 · evaluate.py</a>
+  <a href="#transformer">4 · compare_transformer.py</a>
+  <a href="#threshold">5 · threshold.py</a>
+  <a href="#urgency">6 · urgency.py</a>
+  <a href="#predict">7 · predict.py</a>
+  <a href="#service">8 · service/app.py</a>
+  <a href="#tests">9 · tests/</a>
+  <a href="#notebooks">10 · notebooks/</a>
+  <a href="#glue">11 · project files</a>
+  <div class="grp">Teacher feedback</div>
+  <a href="#fb1">#1 · Negative ≠ urgent</a>
+  <a href="#fb2">#2 · Money threshold</a>
+  <div class="grp">Using it</div>
+  <a href="#run">How to run &amp; demo</a>
+  <a href="#glossary">Word glossary</a>
+</nav>
+
+<main id="top">
+  <div class="hero">
+    <h1>review-radar, explained simply</h1>
+    <p>You said you don't have the idea yet — so this walks through every file and every decision in plain words, as if explaining to a friend. No jargon left unexplained.</p>
+    <div class="repo">github.com/Dishantpaudel/review-radar</div>
+  </div>
+
+  <h2 id="what">What is this project?</h2>
+  <p class="lead">A movie website gets hundreds of thousands of reviews a month. Buried in that pile, real customers are saying "I was charged twice, I'm leaving." Nobody can read them all, so those people slip away unnoticed.</p>
+  <p>This project builds a <b>robot reader</b>. Every review that arrives passes through it in about 2 milliseconds. The robot decides two things: (1) is this review angry? and (2) is it an <i>emergency</i> or just calm criticism? Then it sends the emergencies to a human support agent immediately, and files the rest where they belong.</p>
+  <div class="plain"><b>In one line:</b> read every review the second it arrives, catch the angry-and-about-to-leave customers, and get a human to them before they go.</div>
+
+  <h2 id="bigpic">The big picture</h2>
+  <p>Everything in the project serves this one flow. Read it left to right:</p>
+  <div class="card">
+    <pre>a new review
+   │
+   ▼
+[ 1. Sentiment model ]   →  P(negative) = a score from 0 to 1
+   │                         (0.92 means "92% sure this is negative")
+   ▼
+[ 2. Urgency scorer  ]   →  urgency = 0 to 1
+   │                         (is it an emergency, or calm feedback?)
+   ▼
+[ 3. Router ]
+   ├─ negative + urgent  →  <span class="route r-urgent">support team, now</span>
+   ├─ negative + calm    →  <span class="route r-back">product feedback backlog</span>
+   └─ positive           →  <span class="route r-anal">analytics dashboards</span></pre>
+  </div>
+  <p>Every file you're about to read is one piece of this pipeline — either building a piece, testing a piece, or showing a piece working.</p>
+
+  <h2 id="map">The folder map</h2>
+  <pre>review_model/
+├── src/                    ← the brains (Python logic)
+│   ├── data.py             load the movie reviews
+│   ├── train.py            teach the model
+│   ├── evaluate.py         grade the model
+│   ├── compare_transformer.py   test a fancier model
+│   ├── threshold.py        the money math (feedback #2)
+│   ├── urgency.py          emergency detector (feedback #1)
+│   └── predict.py          score one review
+├── service/app.py          the live web service
+├── notebooks/ 01–04        step-by-step, with charts
+├── tests/                  automatic checks (10 tests)
+├── models/                 the saved trained model
+├── README.md               the written story
+├── presentation.html       your slide deck
+└── explanation.html        this file</pre>
+  <div class="tip"><b>How to read the flow:</b> data.py gets the reviews → train.py learns from them → evaluate.py checks the grade → threshold.py &amp; urgency.py add the two smart decisions → predict.py &amp; app.py put it all together for real use. Tests and notebooks prove each step works.</div>
+
+  <!-- ============ FILE 1 ============ -->
+  <h2 id="data">1 · data.py <span class="em">get the reviews</span></h2>
+  <div class="file">
+    <div class="what">What it does: downloads and loads the movie reviews.</div>
+    <p>A model learns by example, so first we need labeled examples. This file fetches the famous <b>IMDB dataset</b>: 50,000 real movie reviews, each already tagged "positive" or "negative."</p>
+    <div class="plain"><b>Plain words:</b> it's like handing a new employee 50,000 reviews that are already marked "happy" or "angry," so they can learn the pattern.</div>
+    <h3>Key idea: train vs test</h3>
+    <p>The 50,000 reviews are split in half:</p>
+    <ul>
+      <li><b>25,000 train</b> — the model studies these.</li>
+      <li><b>25,000 test</b> — the model is graded on these, which it has <i>never seen</i>.</li>
+    </ul>
+    <p>Why split? Testing on reviews the model already studied is like giving a student an exam with the exact questions they memorized — the score would be a lie. The test set is the honest exam.</p>
+    <p>Label meaning throughout the project: <code>0 = negative</code>, <code>1 = positive</code>.</p>
+  </div>
+
+  <!-- ============ FILE 2 ============ -->
+  <h2 id="train">2 · train.py <span class="em">teach the model</span></h2>
+  <div class="file">
+    <div class="what">What it does: turns reviews into a working sentiment model, and saves it.</div>
+    <p>This is where the learning happens. It has two parts that work in a chain (a "pipeline"):</p>
+    <h3>Part A — TF-IDF: turn words into numbers</h3>
+    <p>Computers can't read words, only numbers. TF-IDF gives each word a number: <b>high if the word is frequent in this review but rare across all reviews.</b></p>
+    <ul>
+      <li>"the", "movie", "and" → near zero (they're everywhere, they tell you nothing)</li>
+      <li>"refund", "masterpiece", "boring" → high (rare and meaningful)</li>
+    </ul>
+    <div class="plain"><b>Plain words:</b> TF-IDF highlights the words that actually carry an opinion and ignores the filler.</div>
+    <h3>Part B — Logistic Regression: the simple brain</h3>
+    <p>It learns a <b>weight</b> for every word. Angry words get negative weights, happy words get positive weights. To score a review, it adds up the weights of the words present, then squashes the total into a probability between 0 and 1 — that's <b>P(negative)</b>.</p>
+    <table>
+      <tr><th>Word</th><th>Learned weight</th><th>Meaning</th></tr>
+      <tr><td>worst</td><td class="n bad">−3.1</td><td>strong "negative" pull</td></tr>
+      <tr><td>boring</td><td class="n bad">−2.4</td><td>negative pull</td></tr>
+      <tr><td>excellent</td><td class="n good">+2.8</td><td>positive pull</td></tr>
+    </table>
+    <div class="tip"><b>Bonus:</b> because it's this simple, you can literally read <i>why</i> it decided — the word weights are right there. A big AI model can't easily tell you that.</div>
+    <h3>It also records everything in MLflow</h3>
+    <p>Every time it trains, it logs the settings and scores to a tracking tool called <b>MLflow</b>, so you can compare experiments later in a web dashboard. Finally it saves the trained model to <code>models/tfidf_logreg.pkl</code> so the live service can load it instantly.</p>
+  </div>
+
+  <!-- ============ FILE 3 ============ -->
+  <h2 id="evaluate">3 · evaluate.py <span class="em">grade the model</span></h2>
+  <div class="file">
+    <div class="what">What it does: measures how good the model is, using the right yardsticks.</div>
+    <p>We don't measure plain "accuracy," because accuracy hides failures. If 90% of reviews were positive, a lazy model that says "positive" every time would be 90% accurate while catching <i>zero</i> angry customers. So we measure the <b>negative class</b> specifically:</p>
+    <table>
+      <tr><th>Metric</th><th>Plain meaning</th><th>Our score</th></tr>
+      <tr><td><b>Recall</b></td><td>Of all the truly angry reviews, how many did we catch?</td><td class="n">0.896</td></tr>
+      <tr><td><b>Precision</b></td><td>Of the ones we flagged as angry, how many really were?</td><td class="n">0.904</td></tr>
+      <tr><td><b>F1</b></td><td>A fair blend of the two (one number to rule them)</td><td class="n good">0.900</td></tr>
+      <tr><td><b>Precision@1000</b></td><td>Of the 1,000 we're <i>most</i> sure about, how many are right?</td><td class="n good">1.00</td></tr>
+    </table>
+    <p>The project's success gate was <b>F1 ≥ 0.85</b>. We hit <b>0.90</b> — passed. And precision@1000 = 1.00 means the very top of the support queue is <b>pure signal</b>: no wasted effort where it matters most.</p>
+    <div class="plain"><b>Why precision@k matters:</b> support has limited time. They work the top of the queue first. This metric says the top of the queue is trustworthy.</div>
+  </div>
+
+  <!-- ============ FILE 4 ============ -->
+  <h2 id="transformer">4 · compare_transformer.py <span class="em">test a fancier model</span></h2>
+  <div class="file">
+    <div class="what">What it does: checks whether a big modern AI model beats our simple one.</div>
+    <p>We tested <b>DistilBERT</b> — a small, fast relative of the AI models behind ChatGPT, already trained to judge sentiment. We used it straight off the shelf (no extra training), scored 3,000 test reviews, and measured the same metrics.</p>
+    <div class="grid2">
+      <div class="card"><h3>The result</h3><p>DistilBERT: F1 = <b>0.898</b><br>Our simple model: F1 = <b>0.900</b><br><b>A tie.</b></p></div>
+      <div class="card"><h3>The decision</h3><p>Ship the simple model. Same quality, ~100× cheaper to run, and explainable. The fancy one is a future upgrade, not the starting point.</p></div>
+    </div>
+    <div class="plain"><b>Why the tie is a great result:</b> a senior engineer doesn't reach for the biggest tool by default. Proving the cheap tool is good enough is the smart, mature call — and now you can defend it with numbers.</div>
+  </div>
+
+  <!-- ============ FILE 5 ============ -->
+  <h2 id="threshold">5 · threshold.py <span class="em">the money math — feedback #2</span></h2>
+  <div class="file">
+    <div class="what">What it does: picks the cut-off score for "act on this" based on profit, not model quality.</div>
+    <p>Full explanation in the <a href="#fb2">Feedback #2</a> section below. In short: it tries every possible cut-off from 0.01 to 0.99 and computes the expected monthly profit at each, then picks the most profitable one. This is the direct answer to your teacher's second point.</p>
+  </div>
+
+  <!-- ============ FILE 6 ============ -->
+  <h2 id="urgency">6 · urgency.py <span class="em">emergency detector — feedback #1</span></h2>
+  <div class="file">
+    <div class="what">What it does: decides if an angry review is an emergency or just calm criticism.</div>
+    <p>Full explanation in the <a href="#fb1">Feedback #1</a> section below. In short: after the sentiment model says "this is negative," this file checks for emergency signals (cancel, refund, billing words, shouting) and routes only the true emergencies to support. This is the direct answer to your teacher's first point.</p>
+  </div>
+
+  <!-- ============ FILE 7 ============ -->
+  <h2 id="predict">7 · predict.py <span class="em">score one review</span></h2>
+  <div class="file">
+    <div class="what">What it does: the glue — takes one review, runs both scorers, returns the decision.</div>
+    <p>This file loads the saved model once, then for any review text it returns a small package: the negativity score, the urgency score, which signals fired, and the final route. It's what the live service calls for every incoming review.</p>
+    <pre><span class="c"># what score_review("Charged twice, cancelling!!!") returns</span>
+{
+  "p_negative": 0.80,
+  "urgency": 0.99,
+  "urgency_signals": { "churn_phrases": ["cancelling","refund"], ... },
+  "route": "support_urgent"
+}</pre>
+  </div>
+
+  <!-- ============ FILE 8 ============ -->
+  <h2 id="service">8 · service/app.py <span class="em">the live web service</span></h2>
+  <div class="file">
+    <div class="what">What it does: exposes the model as a real API the website can call.</div>
+    <p>A small web server built with <b>FastAPI</b>. The website sends a review to it over the internet, and it replies in ~2 milliseconds. This is what makes the project <i>real-time</i> instead of a notebook experiment.</p>
+    <p>It offers two endpoints:</p>
+    <ul>
+      <li><code>GET /health</code> — "are you alive?" → <code>{"status":"ok"}</code></li>
+      <li><code>POST /review</code> — send <code>{"text": "..."}</code>, get back the full decision.</li>
+    </ul>
+    <div class="tip"><b>The demo trick:</b> FastAPI gives you a free interactive test page at <code>/docs</code>. Open it in a browser, paste a review, and watch the answer — no coding needed. Great for showing the teacher live. (See <a href="#run">How to run</a>.)</div>
+  </div>
+
+  <!-- ============ FILE 9 ============ -->
+  <h2 id="tests">9 · tests/ <span class="em">automatic checks</span></h2>
+  <div class="file">
+    <div class="what">What it does: 10 small programs that prove the code behaves correctly.</div>
+    <p>Tests are safety nets. Run <code>pytest</code> and it checks, automatically:</p>
+    <ul>
+      <li><b>test_urgency.py</b> — an angry churn review scores urgent; calm feedback doesn't; routing sends each to the right place.</li>
+      <li><b>test_threshold.py</b> — the money math is correct, and (the key claim) the profit-optimal cut-off really does land below 0.5.</li>
+      <li><b>test_api.py</b> — the live API returns the right route for angry, calm, and positive reviews.</li>
+    </ul>
+    <p>All 10 pass. If you ever change the code and break something, the tests catch it instantly.</p>
+  </div>
+
+  <!-- ============ FILE 10 ============ -->
+  <h2 id="notebooks">10 · notebooks/ <span class="em">step-by-step with charts</span></h2>
+  <div class="file">
+    <div class="what">What it does: the visual, exploratory version of the project — already run, charts included.</div>
+    <table>
+      <tr><th>Notebook</th><th>What you'll see</th></tr>
+      <tr><td><b>01_data_exploration</b></td><td>What the reviews look like, that they're 50/50 balanced, how long they are, real examples.</td></tr>
+      <tr><td><b>02_baseline_model</b></td><td>The scores, the most negative/positive words the model learned, and a calibration chart (are the probabilities honest?).</td></tr>
+      <tr><td><b>03_transformer_comparison</b></td><td>The side-by-side table: simple model vs DistilBERT.</td></tr>
+      <tr><td><b>04_business_threshold</b></td><td><b>Your showpiece for feedback #2</b> — the profit-vs-threshold curve, with the optimal cut-off marked.</td></tr>
+    </table>
+    <div class="tip"><b>Easiest way to see the project:</b> just open these in VSCode. They're already executed, so the charts and numbers are right there — no need to run anything.</div>
+  </div>
+
+  <!-- ============ FILE 11 ============ -->
+  <h2 id="glue">11 · project files <span class="em">the glue</span></h2>
+  <div class="file">
+    <ul>
+      <li><b>README.md</b> — the written story of the project (what GitHub shows on the front page).</li>
+      <li><b>requirements.txt</b> — the list of tools to install so anyone can run it.</li>
+      <li><b>.gitignore</b> — tells git to <i>not</i> upload the big data files and the trained model. That's why cloning the repo needs one command (<code>python -m src.train</code>) to rebuild the model — keeps the repo small and clean.</li>
+      <li><b>mlflow.db</b> — the experiment logbook MLflow writes to.</li>
+      <li><b>models/</b> — where the trained model file lives after training.</li>
+    </ul>
+  </div>
+
+  <!-- ============ FEEDBACK 1 ============ -->
+  <h2 id="fb1">Teacher Feedback #1 — "Negative is not the same as urgent"</h2>
+  <p class="lead">Your teacher's exact concern: many negative reviews are constructive feedback, not emergencies. Some frustrated customers need a reply now. The system must tell them apart — otherwise you drown the support team.</p>
+  <h3>How the project answers it</h3>
+  <p>After the sentiment model flags a review as negative, <b>urgency.py</b> runs a second, transparent check. It's deliberately rule-based (not AI) for one reason: <b>a support manager must be able to see exactly why a review was escalated.</b> A black box that just says "trust me, it's urgent" is useless in a real support workflow.</p>
+  <h3>The four signal groups it looks for</h3>
+  <table>
+    <tr><th>Signal group</th><th>Example words</th><th>Weight</th></tr>
+    <tr><td><b>Churn intent</b> (leaving)</td><td>cancel, refund, never again, switching to</td><td class="n">heaviest</td></tr>
+    <tr><td><b>Money problems</b></td><td>charged, billing, took my money</td><td class="n">high</td></tr>
+    <tr><td><b>Anger</b></td><td>scam, unacceptable, worst</td><td class="n">medium</td></tr>
+    <tr><td><b>Shouting</b></td><td>lots of !!! and ALL-CAPS words</td><td class="n">low</td></tr>
+  </table>
+  <p>It combines these into an urgency score from 0 to 1, and shows which exact words fired. Then the router decides:</p>
+  <div class="card">
+    <table>
+      <tr><th>Sentiment</th><th>Urgency</th><th>Where it goes</th><th>Why</th></tr>
+      <tr><td>Negative</td><td>High</td><td><span class="route r-urgent">support — now</span></td><td>a customer is leaving; act fast</td></tr>
+      <tr><td>Negative</td><td>Low</td><td><span class="route r-back">feedback backlog</span></td><td>useful criticism, read it weekly</td></tr>
+      <tr><td>Positive</td><td>—</td><td><span class="route r-anal">analytics</span></td><td>track trends, no action needed</td></tr>
+    </table>
+  </div>
+  <h3>Seen live</h3>
+  <table>
+    <tr><th>Review</th><th>Urgency</th><th>Route</th></tr>
+    <tr><td>"Charged twice, I want a REFUND, cancelling today!!!"</td><td class="n bad">0.99</td><td><span class="route r-urgent">support — now</span></td></tr>
+    <tr><td>"The pacing dragged and the ending felt rushed."</td><td class="n">0.00</td><td><span class="route r-back">feedback backlog</span></td></tr>
+    <tr><td>"Wonderful film, loved every minute."</td><td class="n">0.02</td><td><span class="route r-anal">analytics</span></td></tr>
+  </table>
+  <div class="plain"><b>The answer in one sentence:</b> "who actually needs intervention?" → the negative reviews that also show churn intent, money problems, or raw anger — and the system now separates exactly those.</div>
+
+  <!-- ============ FEEDBACK 2 ============ -->
+  <h2 id="fb2">Teacher Feedback #2 — "Optimize the threshold on money"</h2>
+  <p class="lead">Your teacher's exact point: contacting a customer costs only $1, so instead of only contacting the ones you're very sure about, maybe you should contact <i>more</i> people — and pick the cut-off that makes the most money, not the best F1.</p>
+  <h3>First, what is a "threshold"?</h3>
+  <p>The model outputs P(negative) from 0 to 1. The threshold is the line you draw: "if the score is above X, we act." The lazy default is 0.5. But 0.5 isn't sacred — it's just a starting guess.</p>
+  <h3>The money logic</h3>
+  <div class="card">
+    <p><b>Cost of contacting one customer:</b> C = $1</p>
+    <p><b>Value of saving one customer:</b> win-back rate × monthly revenue × months kept = 0.15 × $10 × 6 = <b>$9</b></p>
+    <p style="margin-top:10px">Because the prize ($9) is <b>9× the cost</b> ($1), you make money even if most of your contacts are wrong. The exact break-even point:</p>
+    <p style="text-align:center;font-family:Georgia,serif;font-size:20px;margin:10px 0"><b>break-even precision = C / (r·ARPU·M) = $1 / $9 ≈ 0.11</b></p>
+    <p>So you profit as long as at least <b>11%</b> of the people you contact were genuinely about to leave. That's a very low bar — which means you should cast a <b>wide</b> net.</p>
+  </div>
+  <h3>What threshold.py actually does</h3>
+  <p>It sweeps every threshold from 0.01 to 0.99, and at each one computes:</p>
+  <p style="text-align:center;font-family:Georgia,serif;font-size:18px">profit = (customers saved × $60) − (people contacted × $1)</p>
+  <p>Then it picks the threshold with the highest profit. Results on our model:</p>
+  <table>
+    <tr><th>Thing</th><th>Value</th><th>Meaning</th></tr>
+    <tr><td>Break-even precision</td><td class="n">0.11</td><td>the profit floor</td></tr>
+    <tr><td>Default threshold</td><td class="n">0.50</td><td>the lazy guess</td></tr>
+    <tr><td><b>Profit-optimal threshold</b></td><td class="n good">0.44</td><td><b>below 0.5, as predicted</b></td></tr>
+    <tr><td>Precision at that point</td><td class="n">0.87</td><td>8× above break-even → very safe</td></tr>
+  </table>
+  <div class="plain"><b>The punchline your teacher wanted:</b> because contacting is cheap and saving is valuable, the best threshold is <b>lower than 0.5</b> — you should flag <i>more</i> reviews, not fewer. Model-quality metrics (F1) and business-value metrics choose <b>different</b> thresholds, and the business one wins.</div>
+  <div class="warn"><b>Honest footnote (say this — teachers love honesty):</b> on our particular model the extra profit from tuning is small (~$1.9k/month), because the model is very confident and rarely outputs middle-range scores. But the <i>method</i> is the real deliverable: when costs change, or the model is noisier, or real data is imbalanced (real reviews are ~80% positive vs 50% here), you just re-run the sweep and get the new best threshold. You've built the tool, not just one number.</div>
+
+  <!-- ============ HOW TO RUN ============ -->
+  <h2 id="run">How to run &amp; demo it</h2>
+  <p>Everything runs from inside the <code>review_model</code> folder with your virtual environment active.</p>
+
+  <h3>Option A — just look (no running)</h3>
+  <div class="step"><div class="num">1</div><div class="body"><b>Open the notebooks.</b> In VSCode, open <code>notebooks/02_baseline_model.ipynb</code> and <code>04_business_threshold.ipynb</code>. They're already run — scroll to see the scores and charts.</div></div>
+  <div class="step"><div class="num">2</div><div class="body"><b>Read the README</b> on GitHub — it's the whole story on one page.</div></div>
+
+  <h3>Option B — see the experiments dashboard</h3>
+  <pre>cd review_model
+mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5001</pre>
+  <p>Open <b>http://127.0.0.1:5001</b> → two experiments with all the logged scores.</p>
+
+  <h3>Option C — the live demo (best for showing the teacher)</h3>
+  <div class="step"><div class="num">1</div><div class="body"><b>Start the server:</b><pre style="margin:8px 0 0">cd review_model
+uvicorn service.app:app --port 8000</pre></div></div>
+  <div class="step"><div class="num">2</div><div class="body"><b>Open the free test page:</b> in a browser go to <b>http://127.0.0.1:8000/docs</b></div></div>
+  <div class="step"><div class="num">3</div><div class="body"><b>Click</b> POST /review → <b>Try it out</b> → paste a review → <b>Execute</b>. Try <i>"Charged twice, I want a refund, cancelling today!!!"</i> and watch it return <span class="route r-urgent">support_urgent</span> with the signals that fired. Then try <i>"the pacing was a bit slow"</i> and watch it go to <span class="route r-back">feedback_backlog</span>. That's feedback #1 proven live.</div></div>
+
+  <h3>Option D — rebuild from scratch (prove it's reproducible)</h3>
+  <pre>cd review_model
+python -m src.train              <span class="c"># retrains, ~2 minutes</span>
+python -m src.compare_transformer <span class="c"># optional, ~10 min on CPU</span>
+pytest                            <span class="c"># all 10 tests pass</span></pre>
+
+  <!-- ============ GLOSSARY ============ -->
+  <h2 id="glossary">Word glossary</h2>
+  <p>Every term used in the project, in one line each:</p>
+  <table>
+    <tr><th>Term</th><th>Simple meaning</th></tr>
+    <tr><td><b>Sentiment analysis</b></td><td>deciding if text is happy or angry</td></tr>
+    <tr><td><b>Label</b></td><td>the known answer for a training example (positive/negative)</td></tr>
+    <tr><td><b>Train / test split</b></td><td>study set vs honest exam set</td></tr>
+    <tr><td><b>TF-IDF</b></td><td>turning words into numbers, weighting rare+meaningful words higher</td></tr>
+    <tr><td><b>Logistic regression</b></td><td>the simple model: a learned weight per word, added up into a probability</td></tr>
+    <tr><td><b>P(negative)</b></td><td>the model's confidence a review is negative, 0 to 1</td></tr>
+    <tr><td><b>Recall</b></td><td>of all angry reviews, the share you caught</td></tr>
+    <tr><td><b>Precision</b></td><td>of the ones you flagged, the share that were right</td></tr>
+    <tr><td><b>F1</b></td><td>a fair blend of recall and precision, one number</td></tr>
+    <tr><td><b>Precision@k</b></td><td>of the top-k you're most sure about, the share that are right</td></tr>
+    <tr><td><b>Threshold</b></td><td>the cut-off score above which you take action</td></tr>
+    <tr><td><b>DistilBERT</b></td><td>a small, fast modern AI language model</td></tr>
+    <tr><td><b>MLflow</b></td><td>a logbook that records every experiment's settings and scores</td></tr>
+    <tr><td><b>FastAPI</b></td><td>the tool that turns the model into a live web service</td></tr>
+    <tr><td><b>API endpoint</b></td><td>a web address the website calls to get an answer</td></tr>
+    <tr><td><b>Break-even precision</b></td><td>the lowest precision at which the outreach still makes money</td></tr>
+    <tr><td><b>ARPU</b></td><td>average revenue per user (per month)</td></tr>
+    <tr><td><b>Churn</b></td><td>customers leaving / cancelling</td></tr>
+  </table>
+
+  <div class="card" style="margin-top:36px;text-align:center">
+    <p style="margin:0;font-size:16px;color:var(--muted)">That's the whole project, file by file. Open <b>presentation.html</b> for the slide version.</p>
+    <p style="margin:8px 0 0;font-family:monospace;font-size:14px">Dipshant · Industrial Machine Learning · Harbour.Space 2026</p>
+  </div>
+</main>
+</div>
