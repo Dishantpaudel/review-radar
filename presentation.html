@@ -1039,14 +1039,24 @@ function sentiment(text){
 /* line-for-line port of src/urgency.py */
 var CHURN=["cancel","cancelling","canceled","cancellation","refund","money back","never again","never use",
   "switching to","switch to","deleting my account","delete my account","unsubscribe","last time","done with"];
+/* compositional churn intent — "I dont want my subscription" uses no keyword above */
+var CHURN_PATTERNS=[
+  /(?:dont|do not|no longer|never) want (?:my|this|the|your) (?:subscription|membership|account|service|plan)/,
+  /(?:stop|end|drop|ditch|get rid of|dont renew|do not renew) (?:my|the|this|your) (?:subscription|membership|account|service|plan)/,
+  /(?:not|never|wont|will not|not going to|dont want to) renew/,
+  /(?:close|deactivate) (?:my|the) account/,
+  /want out(?:\s*[.!,;]|$|\s+of (?:my|this|the) (?:subscription|membership|account|service|plan|contract))/,
+  /take my business elsewhere/
+];
 var MONEY=["charged","double charge","billing","billed","overcharged","payment","credit card","took my money","stole"];
 var ANGER=["furious","outraged","unacceptable","disgusting","scam","fraud","worst","terrible","horrible","awful","rip off","ripoff"];
 var W={churn:.45, money:.30, anger:.15, intensity:.10};
 
 function urgency(text){
-  var low = text.toLowerCase();
+  var low = text.toLowerCase().replace(/[’']/g,'');   // "don't" -> "dont"
   var hit = function(list){ return list.filter(function(p){ return low.indexOf(p)>-1; }); };
   var ch=hit(CHURN), mo=hit(MONEY), an=hit(ANGER);
+  CHURN_PATTERNS.forEach(function(re){ var m=low.match(re); if(m) ch.push(m[0].trim()); });
   var ex=(text.match(/!/g)||[]).length;
   var words=(text.match(/[A-Za-z]{3,}/g)||[]);
   var caps=words.filter(function(w){ return w===w.toUpperCase(); });
@@ -1056,7 +1066,14 @@ function urgency(text){
         + W.anger*Math.min(1,an.length/2) + W.intensity*intensity;
   return {score: Math.min(1, Math.round(s*1000)/1000), churn:ch, money:mo, anger:an, intensity:intensity};
 }
-function route(p,u){ if(p<0.5) return "analytics"; return u>=0.4 ? "support_urgent" : "feedback_backlog"; }
+/* urgency escalates on its own — the movie-trained sentiment model is out of
+   domain on billing language and must not veto the purpose-built churn engine.
+   The 0.2 floor stops a churn keyword inside praise from paging support. */
+function route(p,u){
+  if(u>=0.4 && p>=0.2) return "support_urgent";
+  if(p>=0.5)           return "feedback_backlog";
+  return "analytics";
+}
 
 var ROUTES = {
   support_urgent:  {t:"😠 SUPPORT — NOW",       bg:"#fee2e2", bd:"#dc2626", fg:"#b91c1c"},
