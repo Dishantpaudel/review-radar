@@ -1,68 +1,67 @@
 <meta charset="utf-8">
-<title>review-radar — How It Works, End to End</title>
+<title>review-radar — How It Works</title>
 <style>
   :root{
-    --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --panel:#f8fafc; --panel2:#f1f5f9;
+    --ink:#0f172a; --ink2:#334155; --muted:#64748b; --line:#e2e8f0; --panel:#f8fafc; --panel2:#f1f5f9;
     --accent:#4f46e5; --accent2:#818cf8; --pos:#16a34a; --neg:#dc2626; --warn:#d97706; --teal:#0d9488;
     --shadow:0 10px 30px rgba(15,23,42,.07);
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
-  body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.6;-webkit-font-smoothing:antialiased}
-  a{color:var(--accent);text-decoration:none}
+  body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.62;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
   code{font-family:"SF Mono",Consolas,monospace;font-size:13px;background:var(--panel2);padding:2px 6px;border-radius:5px;color:#3730a3}
   pre{font-family:"SF Mono",Consolas,monospace;font-size:13px;background:#0b1020;color:#e8ecff;padding:14px 16px;border-radius:10px;overflow-x:auto;line-height:1.55;margin:10px 0}
-  pre .c{color:#7c88b1}pre .s{color:#86efac}pre .k{color:#c4b5fd}
+  pre .c{color:#7c88b1}pre .s{color:#86efac}pre .k{color:#c4b5fd}pre .f{color:#93c5fd}pre .n{color:#fca5a5}
 
-  /* HERO */
-  .hero{background:radial-gradient(1000px 500px at 70% -10%,#4338ca 0%,transparent 60%),linear-gradient(160deg,#0b1020,#1e1b4b);color:#fff;padding:70px 40px 80px;text-align:center;position:relative;overflow:hidden}
-  .hero h1{font-size:46px;margin:0 0 10px;letter-spacing:-.03em;font-weight:800}
-  .hero p{color:#c7d2fe;font-size:19px;max-width:640px;margin:0 auto;position:relative;z-index:2}
-  .hero .rail{display:flex;justify-content:center;gap:8px;margin-top:26px;flex-wrap:wrap;position:relative;z-index:2}
-  .hero .rail span{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 14px;font-size:13px;color:#e0e7ff}
-  .spark{position:absolute;inset:0;opacity:.5}
+  .hero{background:radial-gradient(900px 460px at 72% -12%,#4338ca 0%,transparent 60%),linear-gradient(155deg,#0b1020,#1e1b4b);color:#fff;padding:64px 40px 72px;text-align:center;position:relative;overflow:hidden}
+  .hero h1{font-size:44px;margin:0 0 10px;letter-spacing:-.03em;font-weight:800;position:relative;z-index:2}
+  .hero p{color:#c7d2fe;font-size:18px;max-width:680px;margin:0 auto;position:relative;z-index:2}
+  .hero .rail{display:flex;justify-content:center;gap:7px;margin-top:26px;flex-wrap:wrap;position:relative;z-index:2}
+  .hero .rail span{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:5px 12px;font-size:12px;color:#e0e7ff}
+  .spark{position:absolute;inset:0;opacity:.45}
 
   .wrap{max-width:900px;margin:0 auto;padding:0 28px}
-  .intro{margin:44px auto 10px;font-size:19px;color:#475569}
+  .intro{margin:42px auto 8px;font-size:18px;color:#475569}
 
-  /* STEP */
-  .step{position:relative;padding:30px 0 30px 78px;border-left:3px solid var(--line);margin-left:24px}
+  .step{position:relative;padding:28px 0 28px 74px;border-left:3px solid var(--line);margin-left:24px}
   .step:last-of-type{border-left-color:transparent}
-  .step .dot{position:absolute;left:-25px;top:30px;width:48px;height:48px;border-radius:50%;
-    background:#fff;border:3px solid var(--accent);color:var(--accent);font-weight:800;font-size:19px;
+  .step .dot{position:absolute;left:-25px;top:28px;width:46px;height:46px;border-radius:50%;
+    background:var(--accent);border:3px solid var(--accent);color:#fff;font-weight:800;font-size:18px;
     display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 6px #fff}
-  .step.done .dot{background:var(--accent);color:#fff}
-  .step h2{margin:0 0 4px;font-size:26px;letter-spacing:-.01em}
-  .step .file{font-family:"SF Mono",Consolas,monospace;font-size:12.5px;color:var(--accent);background:#eef2ff;
-    padding:3px 9px;border-radius:6px;display:inline-block;margin-bottom:10px}
-  .step p{font-size:16.5px;color:#334155;margin:8px 0}
-  .plain{background:#eef2ff;border-radius:10px;padding:12px 16px;margin:12px 0;font-size:16px;color:#312e81}
-  .plain b{color:var(--accent)}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin:14px 0;box-shadow:var(--shadow)}
-  .in-out{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;margin:14px 0}
-  .box{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:14px}
-  .box .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin-bottom:5px}
+  .step h2{margin:0 0 3px;font-size:25px;letter-spacing:-.015em}
+  .step .file{font-family:"SF Mono",Consolas,monospace;font-size:12px;color:var(--accent);background:#eef2ff;
+    padding:3px 9px;border-radius:6px;display:inline-block;margin-bottom:9px;border:1px solid #c7d2fe}
+  .step p{font-size:16px;color:var(--ink2);margin:8px 0}
+  .note{background:#eef2ff;border-left:3px solid var(--accent);border-radius:0 9px 9px 0;padding:11px 15px;margin:12px 0;font-size:15.5px;color:#312e81}
+  .note b{color:var(--accent)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:15px 19px;margin:13px 0;box-shadow:var(--shadow)}
+  .warn{border-left:3px solid var(--warn);background:#fffbeb;padding:11px 15px;border-radius:0 9px 9px 0;margin:13px 0;font-size:15px}
+  .io{display:grid;grid-template-columns:1fr auto 1fr;gap:11px;align-items:center;margin:13px 0}
+  .box{background:#fff;border:1px solid var(--line);border-radius:9px;padding:11px 13px;font-size:13.5px}
+  .box .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:800;margin-bottom:4px}
   .box.o{border-color:var(--accent);background:#f5f3ff}
-  .go{font-size:22px;color:var(--accent);font-weight:800}
+  .go{font-size:20px;color:var(--accent);font-weight:800}
   table{border-collapse:collapse;width:100%;font-size:14.5px;margin:10px 0}
   th,td{text-align:left;padding:7px 11px;border-bottom:1px solid var(--line)}
-  th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+  th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:800}
   td.n{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+  tr.win{background:#f0fdf4}
   .good{color:var(--pos);font-weight:700}.bad{color:var(--neg);font-weight:700}
   .route{display:inline-block;border-radius:7px;padding:3px 9px;font-size:13px;font-weight:700}
   .r-urgent{background:#fee2e2;color:#b91c1c}.r-back{background:#fef3c7;color:#b45309}.r-anal{background:#dcfce7;color:#15803d}
+  .wtag{display:inline-block;border-radius:6px;padding:2px 7px;margin:2px 3px 2px 0;font-size:11.5px;font-weight:700}
+  .wtag.neg{background:#fee2e2;color:#b91c1c}.wtag.pos{background:#dcfce7;color:#15803d}
 
-  /* animated flow strip */
-  .strip{background:#0b1020;border-radius:16px;padding:22px;margin:20px 0;overflow:hidden;position:relative}
-  .strip .lane{display:flex;gap:10px;align-items:center;justify-content:space-between}
-  .chip{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:9px;
-    padding:9px 11px;color:#c7d2fe;font-size:12px;font-weight:700;text-align:center;flex:1;transition:all .3s}
-  .chip.hot{background:var(--accent);color:#fff;border-color:var(--accent2);transform:translateY(-3px);
-    box-shadow:0 6px 18px rgba(79,70,229,.5)}
-  .strip .ar{color:#4c5680;font-weight:800;font-size:14px}
+  .strip{background:#0b1020;border-radius:15px;padding:20px;margin:18px 0;overflow:hidden}
+  .strip .lane{display:flex;gap:8px;align-items:center;justify-content:space-between}
+  .chip{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:8px;
+    padding:8px 9px;color:#c7d2fe;font-size:11.5px;font-weight:700;text-align:center;flex:1;transition:all .3s}
+  .chip.hot{background:var(--accent);color:#fff;border-color:var(--accent2);transform:translateY(-3px);box-shadow:0 6px 18px rgba(79,70,229,.5)}
+  .strip .ar{color:#4c5680;font-weight:800;font-size:13px}
 
-  .foot{background:var(--panel);border-top:1px solid var(--line);padding:34px;text-align:center;color:var(--muted);font-size:14px;margin-top:50px}
-  @media(max-width:700px){.in-out{grid-template-columns:1fr}.go{transform:rotate(90deg)}.step{padding-left:20px;margin-left:18px}}
+  .foot{background:var(--panel);border-top:1px solid var(--line);padding:32px;text-align:center;color:var(--muted);font-size:13.5px;margin-top:48px}
+  @media(max-width:700px){.io{grid-template-columns:1fr}.go{transform:rotate(90deg)}.step{padding-left:18px;margin-left:16px}}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 
@@ -79,208 +78,243 @@
     </g>
   </svg>
   <h1>How It Works</h1>
-  <p>The complete journey of one movie review — from a raw dataset on a Stanford server, all the way to a support agent's screen. Ten steps, in order, in plain language.</p>
+  <p>The path of a single review — from a public research dataset to a routed decision on a support agent's screen. Ten stages, in execution order.</p>
   <div class="rail">
     <span>1 Dataset</span><span>2 Preprocess</span><span>3 TF-IDF</span><span>4 Train</span><span>5 Evaluate</span>
-    <span>6 MLflow</span><span>7 Save</span><span>8 API</span><span>9 Predict</span><span>10 Route</span>
+    <span>6 MLflow</span><span>7 Persist</span><span>8 Serve</span><span>9 Predict</span><span>10 Route</span>
   </div>
 </div>
 
 <div class="wrap">
-  <p class="intro">If your professor says <i>"explain everything from the start"</i> — this page is the answer. Each step shows what goes <b>in</b>, what comes <b>out</b>, and which file does it.</p>
+  <p class="intro">Each stage below states what goes <b>in</b>, what comes <b>out</b>, and which file implements it. Read top to bottom for the complete system.</p>
 
   <div class="strip" id="strip">
     <div class="lane">
-      <div class="chip" data-i="0">Dataset</div><span class="ar">›</span>
-      <div class="chip" data-i="1">Preprocess</div><span class="ar">›</span>
-      <div class="chip" data-i="2">TF-IDF</div><span class="ar">›</span>
-      <div class="chip" data-i="3">Train</div><span class="ar">›</span>
-      <div class="chip" data-i="4">Evaluate</div><span class="ar">›</span>
-      <div class="chip" data-i="5">MLflow</div><span class="ar">›</span>
-      <div class="chip" data-i="6">Save</div><span class="ar">›</span>
-      <div class="chip" data-i="7">API</div><span class="ar">›</span>
-      <div class="chip" data-i="8">Predict</div><span class="ar">›</span>
-      <div class="chip" data-i="9">Route</div>
+      <div class="chip">Dataset</div><span class="ar">›</span>
+      <div class="chip">Preprocess</div><span class="ar">›</span>
+      <div class="chip">TF-IDF</div><span class="ar">›</span>
+      <div class="chip">Train</div><span class="ar">›</span>
+      <div class="chip">Evaluate</div><span class="ar">›</span>
+      <div class="chip">MLflow</div><span class="ar">›</span>
+      <div class="chip">Persist</div><span class="ar">›</span>
+      <div class="chip">Serve</div><span class="ar">›</span>
+      <div class="chip">Predict</div><span class="ar">›</span>
+      <div class="chip">Route</div>
     </div>
   </div>
 
   <!-- 1 -->
-  <div class="step done">
+  <div class="step">
     <div class="dot">1</div>
     <h2>Dataset</h2>
     <span class="file">src/data.py</span>
-    <p>A model learns by example, so first we need examples where the answer is already known. We download the <b>IMDB Large Movie Review Dataset</b> — 50,000 real movie reviews from Stanford, each already tagged positive or negative.</p>
-    <div class="in-out">
-      <div class="box"><div class="lbl">In</div>one line of code: <code>load_dataset("stanfordnlp/imdb")</code></div>
+    <p>A supervised model learns from examples where the answer is already known. The system uses the <b>IMDB Large Movie Review Dataset</b> (Maas et al., 2011) — 50,000 reviews from Stanford, each labeled positive or negative.</p>
+    <div class="io">
+      <div class="box"><div class="lbl">In</div><code>load_dataset("stanfordnlp/imdb")</code></div>
       <div class="go">→</div>
-      <div class="box o"><div class="lbl">Out</div><b>25,000 train</b> reviews (to study)<br><b>25,000 test</b> reviews (the honest exam)</div>
+      <div class="box o"><div class="lbl">Out</div><b>25,000 train</b> — the model learns from these<br><b>25,000 test</b> — held back for measurement</div>
     </div>
-    <div class="plain"><b>Why split it in half?</b> Grading the model on reviews it already studied would be like giving a student an exam containing the exact questions they memorised. The test half is never studied — so the score is honest.</div>
+    <div class="note"><b>Why the split is enforced:</b> the model never sees the test half during training. Measuring on data the model has already fit would report memorisation as if it were skill. Every metric in this project comes from held-out data.</div>
+    <div class="warn"><b>Known limitation.</b> IMDB is a stand-in for production data. It is movie criticism, balanced 50/50, and contains no billing language. Real platform reviews run roughly 80% positive and include payment complaints the model has never seen. This has measurable consequences (see stage 9) and drives the top roadmap item: retrain on first-party review data.</div>
   </div>
 
   <!-- 2 -->
-  <div class="step done">
+  <div class="step">
     <div class="dot">2</div>
-    <h2>Data preprocessing</h2>
-    <span class="file">src/train.py — inside the TF-IDF step</span>
-    <p>Raw text is messy: capital letters, punctuation, filler words. Before the model can learn, the text is cleaned and chopped into pieces (called <b>tokens</b>).</p>
-    <div class="in-out">
+    <h2>Preprocessing</h2>
+    <span class="file">src/train.py — TfidfVectorizer</span>
+    <p>Raw text carries capitalisation, punctuation and filler that mean nothing to a linear model. Preprocessing normalises it and splits it into <b>tokens</b>.</p>
+    <div class="io">
       <div class="box"><div class="lbl">In</div>"This Movie Was a TOTAL waste of time!!!"</div>
       <div class="go">→</div>
-      <div class="box o"><div class="lbl">Out</div>["this", "movie", "was", "total", "waste", "of", "time"]<br><small>lowercased · punctuation dropped · split into words</small></div>
+      <div class="box o"><div class="lbl">Out</div>["this","movie","was","total","waste","of","time"]<br><small>lowercased · punctuation stripped · tokenised</small></div>
     </div>
-    <p>We also keep <b>word pairs</b> (bigrams) like <code>"waste of"</code> and <code>"not good"</code> — because "not good" means the opposite of "good", and single words alone would miss that.</p>
-    <div class="plain"><b>Nice detail:</b> IMDB is already clean and perfectly balanced (50% positive / 50% negative), so we don't need to fix missing values or rebalance classes. That's one of the reasons this dataset was chosen.</div>
+    <p>Word <b>pairs</b> (bigrams) are retained alongside single words, because <code>"not good"</code> inverts <code>"good"</code> and single tokens cannot express that.</p>
+    <div class="note"><b>Steps deliberately absent:</b> no imputation and no class rebalancing. IMDB has no missing values and is already balanced, so adding those stages would be ceremony rather than engineering.</div>
   </div>
 
   <!-- 3 -->
-  <div class="step done">
+  <div class="step">
     <div class="dot">3</div>
-    <h2>TF-IDF vectorization <span style="font-size:15px;color:var(--muted);font-weight:400">(feature engineering)</span></h2>
-    <span class="file">src/train.py — TfidfVectorizer</span>
-    <p>Computers can't read words — only numbers. TF-IDF turns each review into a long list of numbers, one slot per word. The clever part is <i>how</i> it scores each word:</p>
+    <h2>TF-IDF vectorisation <span style="font-size:14px;color:var(--muted);font-weight:400">— feature engineering</span></h2>
+    <span class="file">src/train.py</span>
+    <p>Linear models consume numbers, not language. TF-IDF converts each review into a vector of 50,000 values, scoring each term by two factors:</p>
     <table>
-      <tr><th>Part</th><th>What it means</th><th>Effect</th></tr>
-      <tr><td><b>TF</b> — term frequency</td><td>how often the word appears in <i>this</i> review</td><td>repeated words count more</td></tr>
-      <tr><td><b>IDF</b> — inverse document frequency</td><td>how <i>rare</i> the word is across all 25,000 reviews</td><td>common words get crushed</td></tr>
+      <tr><th>Component</th><th>Measures</th><th>Effect</th></tr>
+      <tr><td><b>TF</b> — term frequency</td><td>how often the term appears in this review</td><td>repetition increases weight</td></tr>
+      <tr><td><b>IDF</b> — inverse document frequency</td><td>how rare the term is across the corpus</td><td>ubiquitous filler collapses toward zero</td></tr>
     </table>
-    <div class="in-out">
+    <div class="io">
       <div class="box"><div class="lbl">In</div>["this","movie","was","total","waste","of","time"]</div>
       <div class="go">→</div>
-      <div class="box o"><div class="lbl">Out</div>the · movie · was → <b>≈ 0.00</b><br>waste → <b>0.61</b> &nbsp; total → <b>0.28</b></div>
+      <div class="box o"><div class="lbl">Out</div>the · movie · was → <b>≈ 0.00</b><br>waste → <b>0.61</b> &nbsp;·&nbsp; total → <b>0.28</b></div>
     </div>
-    <div class="plain"><b>Plain words:</b> TF-IDF automatically highlights the words that carry an opinion ("waste", "brilliant") and ignores the filler ("the", "movie", "was") — <i>without anybody writing a list by hand</i>. That's the feature engineering.</div>
+    <div class="note"><b>The point:</b> no engineer wrote a list of significant words. TF-IDF derives which terms carry opinion from corpus statistics alone. That derivation is the feature engineering.</div>
   </div>
 
   <!-- 4 -->
-  <div class="step done">
+  <div class="step">
     <div class="dot">4</div>
-    <h2>Logistic Regression <span style="font-size:15px;color:var(--muted);font-weight:400">(training)</span></h2>
+    <h2>Training</h2>
     <span class="file">src/train.py — <code>python -m src.train</code></span>
-    <p>Now the actual learning. Logistic Regression is the simplest useful "brain": it learns one <b>weight</b> per word. It reads all 25,000 training reviews and nudges each weight up or down until its guesses match the known answers.</p>
-    <table>
-      <tr><th>Word</th><th class="n">Learned weight</th><th>Meaning</th></tr>
-      <tr><td>worst</td><td class="n bad">−3.1</td><td>strong push toward "negative"</td></tr>
-      <tr><td>waste</td><td class="n bad">−2.7</td><td>push toward "negative"</td></tr>
-      <tr><td>excellent</td><td class="n good">+2.8</td><td>push toward "positive"</td></tr>
-    </table>
-    <p>To score a new review it just adds up the weights of the words present, then squashes the total into a probability between 0 and 1.</p>
-    <div class="in-out">
-      <div class="box"><div class="lbl">In</div>25,000 reviews + their known answers</div>
-      <div class="go">→</div>
-      <div class="box o"><div class="lbl">Out</div>a trained model that outputs <b>P(negative)</b> — e.g. <b>0.92</b> = "92% sure this is negative"</div>
+    <p>Logistic regression learns <b>one weight per feature</b>. It passes over the 25,000 training reviews, adjusting weights until its predictions align with the known labels. Scoring a new review sums the weights of the features present and maps the total onto a probability.</p>
+    <pre>z = intercept + Σ (tfidf[term] × weight[term])
+P(negative) = 1 − sigmoid(z)</pre>
+    <p>Weights extracted from the trained model:</p>
+    <div class="card" style="margin-bottom:8px">
+      <b style="color:var(--neg);font-size:14px">Strongest negative</b><br>
+      <span class="wtag neg">bad −7.91</span><span class="wtag neg">worst −7.19</span><span class="wtag neg">awful −5.85</span><span class="wtag neg">"the worst" −5.74</span><span class="wtag neg">boring −5.36</span><span class="wtag neg">waste −4.91</span>
+      <br><br>
+      <b style="color:var(--pos);font-size:14px">Strongest positive</b><br>
+      <span class="wtag pos">great +7.08</span><span class="wtag pos">excellent +5.46</span><span class="wtag pos">wonderful +4.41</span><span class="wtag pos">"the best" +3.89</span><span class="wtag pos">amazing +3.73</span>
     </div>
-    <div class="plain"><b>Why so simple?</b> Because it's fast (~2 ms), runs on any laptop with no GPU, and — most importantly — you can <b>read the weights</b> and see exactly why it decided. A giant AI model can't tell you that.</div>
+    <div class="note"><b>Two bigrams rank among the strongest features</b> — <code>"the worst"</code> and <code>"the best"</code>. That is direct evidence the decision in stage 2 to keep word pairs was worth its cost, and the experiment sweep quantifies it at <b>+0.011 F1</b>.</div>
   </div>
 
   <!-- 5 -->
-  <div class="step done">
+  <div class="step">
     <div class="dot">5</div>
     <h2>Evaluation</h2>
     <span class="file">src/evaluate.py</span>
-    <p>Now we grade it — on the 25,000 test reviews it has <b>never seen</b>. We deliberately do <i>not</i> use plain "accuracy", because accuracy lies: if 90% of reviews were positive, a lazy model that always says "positive" scores 90% while catching <b>zero</b> angry customers.</p>
+    <p>The model is measured on the 25,000 held-out reviews. Metrics target the <b>negative class</b> specifically; overall accuracy is not used.</p>
+    <div class="card" style="border-left:3px solid var(--neg)">
+      <b>Why accuracy is rejected:</b> production traffic is roughly 80% positive. A model that answers "positive" unconditionally scores 80% accuracy while detecting <b>zero</b> at-risk customers. Accuracy would rank that model highly. It is the wrong instrument.
+    </div>
     <table>
-      <tr><th>Metric</th><th>The question it answers</th><th class="n">Our score</th></tr>
-      <tr><td><b>Recall</b></td><td>Of all truly angry reviews, how many did we catch?</td><td class="n">0.896</td></tr>
-      <tr><td><b>Precision</b></td><td>Of the ones we flagged, how many really were angry?</td><td class="n">0.904</td></tr>
-      <tr><td><b>F1</b></td><td>A fair blend of both — one number</td><td class="n good">0.900</td></tr>
-      <tr><td><b>Precision@1000</b></td><td>Of the 1,000 we're <i>most</i> sure about, how many are right?</td><td class="n good">1.00</td></tr>
+      <tr><th>Metric</th><th>Question</th><th class="n">Result</th></tr>
+      <tr><td><b>Recall</b></td><td>Of all genuinely negative reviews, how many were detected?</td><td class="n">0.896</td></tr>
+      <tr><td><b>Precision</b></td><td>Of those flagged, how many were genuinely negative?</td><td class="n">0.904</td></tr>
+      <tr><td><b>F1</b></td><td>Balance of the two — the project's acceptance gate</td><td class="n good">0.900</td></tr>
+      <tr><td><b>Precision@1000</b></td><td>Of the 1,000 highest-confidence flags, how many are correct?</td><td class="n good">1.00</td></tr>
     </table>
-    <p>The project's success gate was <b>F1 ≥ 0.85</b>. We scored <b>0.90</b> — passed with room to spare.</p>
-    <div class="plain"><b>Precision@1000 = 1.00 is the business win:</b> support works the top of the queue first. This says the top 1,000 flagged reviews are <b>all genuinely negative</b> — zero wasted agent time where it matters most.</div>
+    <p>The acceptance gate was <b>F1 ≥ 0.85</b>. The model reaches <b>0.900</b>.</p>
+    <div class="note"><b>Precision@1000 = 1.00 is the operational result.</b> Support capacity is finite and the queue is worked top-down. Every one of the first thousand flagged reviews is genuinely negative, so no agent time is spent on false alarms where capacity is scarcest.</div>
   </div>
 
   <!-- 6 -->
-  <div class="step done">
+  <div class="step">
     <div class="dot">6</div>
-    <h2>MLflow — experiment tracking</h2>
-    <span class="file">src/train.py — <code>mlflow.log_param / log_metric / log_artifact</code></span>
-    <p>This is what turns a school exercise into an <b>industrial</b> project. Every training run automatically writes its settings, its scores, and the model file into a logbook you can browse in a web dashboard.</p>
-    <div class="card">
-      <table>
-        <tr><th>MLflow records</th><th>Example from our project</th></tr>
-        <tr><td><b>Parameters</b> (the settings)</td><td><code>max_features=50000</code>, <code>C=1.0</code>, <code>ngram_range=1-2</code></td></tr>
-        <tr><td><b>Metrics</b> (the scores)</td><td><code>f1_negative=0.900</code>, <code>recall=0.896</code></td></tr>
-        <tr><td><b>Artifacts</b> (the outputs)</td><td>the trained <code>tfidf_logreg.pkl</code> file</td></tr>
-        <tr><td><b>Run ID</b> (the fingerprint)</td><td>a unique id for every single run</td></tr>
-      </table>
-    </div>
-    <p><b>Why it matters:</b> six months from now, someone asks "which settings produced the 0.90 model, and can we rebuild it?" Without MLflow that's guesswork. With it, you open the dashboard, read the exact parameters, and reproduce it.</p>
-    <div class="plain"><b>See it yourself:</b> <code>mlflow ui --backend-store-uri sqlite:///mlflow.db</code> → open <b>127.0.0.1:5000</b>, and compare every run side by side.</div>
+    <h2>Experiment tracking</h2>
+    <span class="file">src/train.py · src/experiments.py</span>
+    <p>Every training run writes its configuration, its scores and its output artifact to <b>MLflow</b>, an experiment database with a web interface. This is the difference between a result and a reproducible result.</p>
+    <table>
+      <tr><th>Recorded</th><th>Example</th></tr>
+      <tr><td><b>Parameters</b></td><td><code>max_features=50000</code>, <code>C=1.0</code>, <code>ngram_range=1-2</code></td></tr>
+      <tr><td><b>Metrics</b></td><td><code>f1_negative=0.8998</code>, <code>recall_negative=0.8961</code></td></tr>
+      <tr><td><b>Artifacts</b></td><td><code>tfidf_logreg.pkl</code> — the model itself</td></tr>
+      <tr><td><b>Run ID</b></td><td><code>3b3c9a50</code> — an immutable reference</td></tr>
+    </table>
+    <p><code>python -m src.experiments</code> trains five configurations and records each as a run. Sorted by F1:</p>
+    <table>
+      <tr><th>Run</th><th>ngram</th><th class="n">features</th><th class="n">C</th><th class="n">F1 (neg)</th></tr>
+      <tr><td>E</td><td>1-2</td><td class="n">50,000</td><td class="n">10.0</td><td class="n good">0.9030</td></tr>
+      <tr class="win"><td>C — <b>shipped</b></td><td>1-2</td><td class="n">50,000</td><td class="n">1.0</td><td class="n">0.8998</td></tr>
+      <tr><td>B</td><td>1-1</td><td class="n">50,000</td><td class="n">1.0</td><td class="n">0.8889</td></tr>
+      <tr><td>A</td><td>1-1</td><td class="n">3,000</td><td class="n">1.0</td><td class="n">0.8825</td></tr>
+      <tr><td>D</td><td>1-2</td><td class="n">50,000</td><td class="n">0.1</td><td class="n bad">0.8684</td></tr>
+    </table>
+    <div class="warn"><b>Run E posts the highest F1 and is not shipped.</b> It beats the deployed configuration by 0.003 on a single test-set reading, and it is the less-regularised model, so it carries more overfitting risk on a distribution that is not even the production one. It is recorded as a promotion candidate pending cross-validation. Adding bigrams (+0.011) was the only change large enough to act on.</div>
+    <div class="note"><b>Inspect it:</b> <code>mlflow ui --backend-store-uri sqlite:///mlflow.db</code> → <code>127.0.0.1:5000</code>. Three experiments, nine runs.</div>
   </div>
 
   <!-- 7 -->
-  <div class="step done">
+  <div class="step">
     <div class="dot">7</div>
-    <h2>Saved model</h2>
+    <h2>Model persistence</h2>
     <span class="file">models/tfidf_logreg.pkl</span>
-    <p>Training takes a couple of minutes — far too slow to redo for every review. So the finished model is frozen into a single file on disk. The live service loads that file <b>once</b> at startup and then answers instantly.</p>
-    <div class="in-out">
-      <div class="box"><div class="lbl">In</div>the trained model, in memory</div>
+    <p>Training takes roughly two minutes — far too slow to repeat per request. The fitted pipeline is serialised to a single file. The service loads it once at startup and reuses it for every subsequent prediction.</p>
+    <div class="io">
+      <div class="box"><div class="lbl">In</div>the fitted pipeline, in memory</div>
       <div class="go">→</div>
-      <div class="box o"><div class="lbl">Out</div><code>models/tfidf_logreg.pkl</code> — loads in milliseconds, forever</div>
+      <div class="box o"><div class="lbl">Out</div><code>models/tfidf_logreg.pkl</code> — loads in milliseconds</div>
     </div>
-    <div class="plain"><b>Train once, predict millions of times.</b> This split — slow training offline, fast prediction online — is the core shape of every production ML system.</div>
+    <div class="note"><b>Train once, predict continuously.</b> This asymmetry — expensive training offline, cheap inference online — is the defining shape of a production ML system. The vectoriser travels inside the same pickle as the classifier, which eliminates train/serve skew: it is structurally impossible to apply different preprocessing at inference than at training.</div>
   </div>
 
   <!-- 8 -->
-  <div class="step done">
+  <div class="step">
     <div class="dot">8</div>
-    <h2>FastAPI — the live service</h2>
+    <h2>Serving</h2>
     <span class="file">service/app.py</span>
-    <p>A model sitting in a file helps nobody. FastAPI wraps it in a small web server so the website can ask it questions over the internet.</p>
-    <pre><span class="c"># the website sends:</span>
+    <p>FastAPI exposes the model over HTTP so the platform can call it on every review event.</p>
+    <pre><span class="c"># request</span>
 POST /review   { <span class="s">"text"</span>: <span class="s">"Charged twice, cancelling!!!"</span> }
 
-<span class="c"># it answers in ~2 milliseconds:</span>
-{ <span class="s">"p_negative"</span>: 0.80, <span class="s">"urgency"</span>: 0.99, <span class="s">"route"</span>: <span class="s">"support_urgent"</span> }</pre>
-    <div class="plain"><b>Try it live:</b> run <code>uvicorn service.app:app --port 8000</code>, then open <b>127.0.0.1:8000/docs</b> — FastAPI builds a free interactive test page. Paste any review, hit Execute, see the answer.</div>
+<span class="c"># response, measured at 2.32 ms</span>
+{ <span class="f">"p_negative"</span>: <span class="n">0.319</span>, <span class="f">"urgency"</span>: <span class="n">0.828</span>,
+  <span class="f">"route"</span>: <span class="s">"support_urgent"</span>, <span class="f">"latency_ms"</span>: <span class="n">2.32</span> }</pre>
+    <table>
+      <tr><th>Design decision</th><th>Reason</th></tr>
+      <tr><td>Model loaded once via the lifespan hook</td><td>per-request loading would cost seconds; this is why latency is ~2 ms</td></tr>
+      <tr><td>Pydantic-typed request contract</td><td>malformed payloads are rejected at the boundary, not inside the model</td></tr>
+      <tr><td><code>/health</code> endpoint</td><td>orchestrators require a liveness signal before routing traffic</td></tr>
+      <tr><td><code>latency_ms</code> returned per call</td><td>performance that is not measured cannot be monitored</td></tr>
+    </table>
+    <div class="note"><b>Interactive console:</b> run <code>uvicorn service.app:app --port 8000</code> and open <code>127.0.0.1:8000/docs</code>. FastAPI generates an OpenAPI test page from the type signatures — submit any review text and inspect the full response.</div>
   </div>
 
   <!-- 9 -->
-  <div class="step done">
+  <div class="step">
     <div class="dot">9</div>
-    <h2>Prediction — the two scorers</h2>
+    <h2>Prediction — two independent scorers</h2>
     <span class="file">src/predict.py · src/urgency.py</span>
-    <p>Every incoming review is scored <b>twice</b>, because "angry" and "urgent" are different questions:</p>
+    <p>Each review is scored twice, because <b>"negative" and "urgent" are different questions</b> and a single model answers only the first.</p>
     <div class="card">
-      <p style="margin:0 0 6px"><b>Scorer 1 — Sentiment</b> (the ML model): is this review negative? → <code>P(negative) = 0.80</code></p>
-      <p style="margin:0"><b>Scorer 2 — Urgency</b> (transparent rules): is it an emergency? → looks for churn words (<i>cancel, refund</i>), money words (<i>charged, billing</i>), anger words, and shouting (<i>!!!</i>, ALL-CAPS) → <code>urgency = 0.99</code></p>
+      <p style="margin:0 0 7px"><b>Scorer 1 — Sentiment</b> (learned). Is the review negative? → <code>P(negative)</code></p>
+      <p style="margin:0"><b>Scorer 2 — Urgency</b> (rule-based). Is the customer leaving? → scans for churn intent (<i>cancel, refund, "dont want my subscription"</i>), payment terms (<i>charged, billing</i>), anger vocabulary, and shouting (<code>!!!</code>, capitalisation). Returns a score plus <b>the literal terms that matched</b>.</p>
     </div>
-    <div class="plain"><b>Why rules and not ML for urgency?</b> A support manager must be able to see <b>exactly why</b> a review was escalated. Our scorer returns the literal words that fired. A black box saying "trust me, it's urgent" is useless in a real support workflow.</div>
+    <h3 style="font-size:16px;margin-top:16px">Why urgency is rule-based rather than learned</h3>
+    <p>Three reasons, in order of weight:</p>
+    <ol>
+      <li><b>No labels exist.</b> IMDB carries sentiment labels, not urgency labels. Training a supervised urgency model would require inventing the ground truth.</li>
+      <li><b>Escalation must be auditable.</b> A support lead needs to see why a ticket jumped the queue, and a customer must be able to contest it. The engine returns the exact matched terms.</li>
+      <li><b>It is in-domain where the model is not.</b> The sentiment model has never seen billing language; the rules were written for precisely that vocabulary.</li>
+    </ol>
+    <div class="card" style="border-left:3px solid var(--warn)">
+      <b>The domain gap, measured.</b> The same system on two inputs:
+      <table style="margin-top:8px">
+        <tr><th>Input</th><th class="n">P(negative)</th><th>Interpretation</th></tr>
+        <tr><td>"waste of time, boring, awful acting, terrible ending"</td><td class="n good">0.9994</td><td>movie vocabulary — confident and correct</td></tr>
+        <tr><td>"Charged twice, I want a REFUND, cancelling today!!!"</td><td class="n bad">0.319</td><td>billing vocabulary — out of domain, unreliable</td></tr>
+      </table>
+      <p style="margin:8px 0 0;font-size:14.5px">The second review is unmistakably from a departing customer, yet the sentiment model rates it as probably positive. It has no billing vocabulary to reason with. The urgency engine scored the same text at <b>0.828</b>. This is the concrete reason the two scorers exist: <b>each covers the other's blind spot.</b></p>
+    </div>
   </div>
 
   <!-- 10 -->
   <div class="step">
     <div class="dot">10</div>
-    <h2>Business routing — the decision</h2>
+    <h2>Business routing</h2>
     <span class="file">src/urgency.py — <code>route()</code> · src/threshold.py</span>
-    <p>Finally, the two scores become an <b>action</b>. This is where machine learning turns into business value:</p>
-    <div class="card">
-      <table>
-        <tr><th>Sentiment</th><th>Urgency</th><th>Where it goes</th><th>Why</th></tr>
-        <tr><td>Negative</td><td>High</td><td><span class="route r-urgent">support — now</span></td><td>a customer is walking out the door</td></tr>
-        <tr><td>Negative</td><td>Low</td><td><span class="route r-back">feedback backlog</span></td><td>useful criticism, read it weekly</td></tr>
-        <tr><td>Positive</td><td>—</td><td><span class="route r-anal">analytics</span></td><td>track trends, no action needed</td></tr>
-      </table>
-    </div>
-    <p>And the cut-off for "negative" isn't the lazy 0.5 — it's chosen by <b>money</b>. Contacting costs $1, saving a customer is worth $9, so break-even precision is only 11% and the profit-optimal cut-off lands at <b>0.44</b>.</p>
-    <div class="plain"><b>The full journey:</b> a Stanford dataset → cleaned text → numbers → a trained brain → an honest grade → a tracked experiment → a frozen file → a live web service → two scores → <b>a support agent picking up the phone before the customer leaves.</b></div>
+    <p>The two scores resolve into an action. This is where a prediction becomes a business decision.</p>
+    <pre><span class="k">if</span> urgency &gt;= <span class="n">0.4</span> <span class="k">and</span> p_negative &gt;= <span class="n">0.2</span>:  <span class="k">return</span> <span class="s">"support_urgent"</span>
+<span class="k">if</span> p_negative &gt;= <span class="n">0.5</span>:                    <span class="k">return</span> <span class="s">"feedback_backlog"</span>
+<span class="k">return</span> <span class="s">"analytics"</span></pre>
+    <table>
+      <tr><th>Condition</th><th>Route</th><th>Rationale</th></tr>
+      <tr><td>Urgent, and not clearly positive</td><td><span class="route r-urgent">support_urgent</span></td><td>the customer is leaving — respond within hours</td></tr>
+      <tr><td>Negative, calm</td><td><span class="route r-back">feedback_backlog</span></td><td>legitimate criticism — review on a weekly cycle</td></tr>
+      <tr><td>Neither</td><td><span class="route r-anal">analytics</span></td><td>trend reporting, no intervention</td></tr>
+    </table>
+    <h3 style="font-size:16px;margin-top:16px">Why urgency escalates independently</h3>
+    <p>Explicit churn intent is a support event regardless of the sentiment score. Sentiment acts only as a <b>floor</b> (<code>≥ 0.2</code>), which prevents a churn term inside praise — <i>"I'd never cancel, I love it"</i> — from paging an agent.</p>
+    <div class="warn"><b>This ordering was originally wrong, and the defect was real.</b> The first implementation evaluated sentiment first and returned <code>analytics</code> whenever <code>P(negative) &lt; 0.5</code>. Because the sentiment model is out of domain on billing language, it scored a customer writing <i>"Charged twice, I want a REFUND, cancelling today!!!"</i> at 0.319 — and that unreliable score silently overruled an urgency of 0.828, routing a departing customer to analytics. <b>An unreliable component must not be able to veto a reliable one.</b> The fix inverts the precedence; a regression test named for the failure now guards it.</div>
+    <h3 style="font-size:16px;margin-top:16px">Where the 0.5 threshold comes from</h3>
+    <p>It does not come from the model — it comes from the economics. Outreach costs <b>$1</b>; a retained customer is worth <b>$9</b>. Break-even precision is therefore <code>$1/$9 ≈ 11%</code>, and sweeping every threshold against expected profit puts the optimum at <b>0.44</b>, below the conventional 0.5. The threshold is a business parameter, recomputed whenever costs change.</p>
+    <div class="note"><b>End to end:</b> a public dataset → normalised text → a sparse vector → a fitted linear model → a held-out measurement → a tracked experiment → a serialised artifact → an HTTP service → two independent scores → <b>a support agent contacting a customer before they leave.</b></div>
   </div>
 </div>
 
 <div class="foot">
   <b>review-radar</b> · Dipshant · Industrial Machine Learning · Harbour.Space 2026<br>
   <span style="font-family:monospace;font-size:13px">github.com/Dishantpaudel/review-radar</span><br>
-  <span style="font-size:13px">See also: <a href="presentation.html">presentation.html</a> · <a href="explanation.html">explanation.html</a></span>
+  <span style="font-size:13px">See also: <a href="presentation.html">presentation.html</a> · <a href="README.md">README</a></span>
 </div>
 
 <script>
-  // animate the top strip through the 10 stages
   (function(){
-    var chips = document.querySelectorAll('#strip .chip');
     if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    var i = 0;
+    var chips = document.querySelectorAll('#strip .chip'), i = 0;
     setInterval(function(){
       chips.forEach(function(c,k){ c.classList.toggle('hot', k === i); });
       i = (i + 1) % chips.length;

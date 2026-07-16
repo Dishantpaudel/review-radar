@@ -13,3 +13,6 @@ __pycache__/
 # Env
 .venv/
 .env
+
+# Personal reference doc — kept local, not part of the published project
+explanation.html
