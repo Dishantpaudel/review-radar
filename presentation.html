@@ -356,8 +356,8 @@ load_dataset(<span class="s">"stanfordnlp/imdb"</span>)  <span class="c"># src/d
           <p style="font-size:16px;margin:0">The model <b>never sees</b> the 25k test reviews during training. Grading on studied data would be an exam with the answers leaked. Every number in this deck comes from unseen data.</p>
         </div>
         <div class="card" style="margin-top:12px;border-left:3px solid var(--warn)">
-          <h3 style="color:var(--warn)">Honest limitation</h3>
-          <p style="font-size:16px;margin:0">IMDB is a <b>stand-in</b>: movie reviews, balanced 50/50. Real platform reviews are ~80% positive and contain billing complaints the model never saw. <b>Production plan: retrain monthly on our own reviews.</b></p>
+          <h3 style="color:var(--warn)">Known limitation</h3>
+          <p style="font-size:16px;margin:0">IMDB is a <b>stand-in</b>: movie reviews, balanced 50/50. Real platform reviews are ~80% positive and contain billing complaints the model never saw. This has measurable consequences — <b>slide 16</b>. Production plan: retrain monthly on first-party reviews.</p>
         </div>
       </div>
     </div>
@@ -403,7 +403,7 @@ load_dataset(<span class="s">"stanfordnlp/imdb"</span>)  <span class="c"># src/d
 <!-- ============ 8 · MODEL CHOICE RATIONALE ============ -->
 <section class="slide" id="s8">
   <div class="wrap">
-    <span class="kicker">Step 4 · Model Selection — the questions a professor will ask</span>
+    <span class="kicker">Step 4 · Model Selection</span>
     <h2>Why this model, and not the others?</h2>
     <table>
       <tr><th>Candidate</th><th>Why we did / didn't pick it</th><th>Verdict</th></tr>
@@ -414,7 +414,7 @@ load_dataset(<span class="s">"stanfordnlp/imdb"</span>)  <span class="c"># src/d
       <tr><td>Fine-tuned BERT</td><td>Would likely reach ~0.93. Needs a GPU and hours of training for <b>+3 points we don't need</b> — the gate is 0.85.</td><td class="muted">out of scope</td></tr>
     </table>
     <div class="card" style="margin-top:16px;border-left:3px solid var(--pos)">
-      <p style="margin:0"><b>The industrial answer:</b> the constraint isn't accuracy — we cleared the gate. It's <b>latency, cost, and explainability</b>. Picking the biggest model available is a student move. Proving the cheap one suffices is an engineering decision.</p>
+      <p style="margin:0"><b>The industrial answer:</b> accuracy stopped being the binding constraint once the gate was cleared. The real constraints are <b>latency, cost, and explainability</b> — and the simple model wins all three. Reaching for the largest available model is a reflex; measuring that the cheapest sufficient one suffices is a decision.</p>
     </div>
   </div>
   <div class="foot"><span class="tag">MODEL SELECTION</span><span class="ctr"></span></div>
@@ -508,7 +508,7 @@ mlflow.log_artifact(MODEL_PATH)</span>
           <li><b>Auditability</b> — "why is this model in production?" has a written answer.</li>
           <li><b>No lost work</b> — every experiment survives, even the failures.</li>
         </ul>
-        <p class="muted" style="font-size:14.5px;margin-top:12px"><b>See it live:</b><br><code style="font-family:monospace;font-size:12.5px">mlflow ui --backend-store-uri sqlite:///mlflow.db</code></p>
+        <p class="muted" style="font-size:14.5px;margin-top:12px">Browsable at <code style="font-family:monospace;font-size:12.5px">mlflow ui --backend-store-uri sqlite:///mlflow.db</code></p>
       </div>
     </div>
   </div>
@@ -545,8 +545,8 @@ mlflow.log_artifact(MODEL_PATH)</span>
         </table>
       </div>
       <div class="card" style="border-left:3px solid var(--warn)">
-        <h3 style="color:var(--warn)">The honest read</h3>
-        <p style="font-size:15.5px;margin:0">Run <b>E edges the shipped model by +0.003</b> — that's <b>noise</b>, not a discovery, and it's the <i>less</i> regularized model. It's logged as a promotion candidate pending proper cross-validation, <b>not</b> shipped on one test-set reading. Bigrams were the genuine win. <b>This is what tracking is for: the finding is recorded, not remembered.</b></p>
+        <h3 style="color:var(--warn)">Why run E was not shipped</h3>
+        <p style="font-size:15.5px;margin:0">E's +0.003 amounts to <b>69 net reviews out of 25,000</b> — the two models disagree on 965, E winning 517 and losing 448. That is a coin flip, not a discovery. E is also the <i>less</i> regularized model, so it carries more overfit risk on a distribution that isn't even production. Logged as a promotion candidate pending cross-validation. <b>Bigrams were the genuine win.</b></p>
       </div>
     </div>
   </div>
@@ -608,7 +608,7 @@ mlflow.log_artifact(MODEL_PATH)</span>
 <!-- ============ 15 · FEEDBACK 1 ============ -->
 <section class="slide" id="s15">
   <div class="wrap">
-    <span class="kicker">Review Feedback #1 · Answered in code</span>
+    <span class="kicker">Design Feedback #1 · Answered in code</span>
     <h2>"Negative" and "urgent" are different questions</h2>
     <div class="cols">
       <div>
@@ -640,7 +640,7 @@ mlflow.log_artifact(MODEL_PATH)</span>
       </div>
     </div>
   </div>
-  <div class="foot"><span class="tag">FEEDBACK #1 · URGENCY ENGINE</span><span class="ctr"></span></div>
+  <div class="foot"><span class="tag">DESIGN FEEDBACK #1</span><span class="ctr"></span></div>
 </section>
 
 <!-- ============ 15b · DEFECTS FOUND ============ -->
@@ -680,7 +680,7 @@ mlflow.log_artifact(MODEL_PATH)</span>
 <!-- ============ 16 · FEEDBACK 2 ============ -->
 <section class="slide" id="s16">
   <div class="wrap">
-    <span class="kicker">Review Feedback #2 · Answered in code</span>
+    <span class="kicker">Design Feedback #2 · Answered in code</span>
     <h2>The threshold is a business decision, not an ML one</h2>
     <div class="cols" style="align-items:center">
       <div>
@@ -706,13 +706,13 @@ mlflow.log_artifact(MODEL_PATH)</span>
       </div>
     </div>
   </div>
-  <div class="foot"><span class="tag">FEEDBACK #2 · THRESHOLD</span><span class="ctr"></span></div>
+  <div class="foot"><span class="tag">DESIGN FEEDBACK #2</span><span class="ctr"></span></div>
 </section>
 
 <!-- ============ 17 · PROFIT CURVE ============ -->
 <section class="slide" id="s17">
   <div class="wrap">
-    <span class="kicker">Feedback #2 · The evidence</span>
+    <span class="kicker">Design Feedback #2 · The evidence</span>
     <h2>Profit vs threshold</h2>
     <div class="cols" style="grid-template-columns:1.45fr 1fr;align-items:center">
       <div>
@@ -744,13 +744,13 @@ mlflow.log_artifact(MODEL_PATH)</span>
           <li>The peak sits <b>left of 0.5</b>.</li>
         </ul>
         <div class="card" style="margin-top:12px;border-left:3px solid var(--warn)">
-          <h3 style="color:var(--warn)">Intellectual honesty</h3>
-          <p style="font-size:15.5px;margin:0">On <i>this</i> model the gain is modest (~$1.9k/mo) because it's well-calibrated and rarely outputs mid-range scores. With noisier or imbalanced production data the gap widens sharply. <b>The reusable method is the deliverable — not one lucky number.</b></p>
+          <h3 style="color:var(--warn)">Scope of the claim</h3>
+          <p style="font-size:15.5px;margin:0">On <i>this</i> model the gain over t=0.5 is modest (~$1.9k/mo), because it is well-calibrated and rarely emits mid-range scores where the threshold would bite. The gap widens sharply with noisier or imbalanced production data. <b>The reusable method is the deliverable — not one number.</b></p>
         </div>
       </div>
     </div>
   </div>
-  <div class="foot"><span class="tag">FEEDBACK #2 · EVIDENCE</span><span class="ctr"></span></div>
+  <div class="foot"><span class="tag">DESIGN FEEDBACK #2</span><span class="ctr"></span></div>
 </section>
 
 <!-- ============ 18 · LIVE DEMO ============ -->
@@ -823,7 +823,7 @@ POST /review
           <li><b>/health endpoint</b> — load balancers need a heartbeat.</li>
           <li><b>Latency returned</b> in every response — you cannot monitor what you don't measure.</li>
         </ul>
-        <p class="muted" style="font-size:14.5px;margin-top:12px"><b>Demo it:</b><br><code style="font-family:monospace;font-size:12.5px">uvicorn service.app:app --port 8000</code><br>→ open <b>127.0.0.1:8000/docs</b> for a free interactive console.</p>
+        <p class="muted" style="font-size:14.5px;margin-top:12px">Served by <code style="font-family:monospace;font-size:12.5px">uvicorn service.app:app --port 8000</code><br>An interactive OpenAPI console is generated at <b>127.0.0.1:8000/docs</b>.</p>
       </div>
     </div>
   </div>
@@ -888,7 +888,7 @@ POST /review
           <div class="statlbl">estimated annual effect at the profit-optimal threshold</div>
         </div>
         <div class="card" style="margin-top:12px;border-left:3px solid var(--warn)">
-          <p style="font-size:15px;margin:0"><b>Read this honestly:</b> a model of the business, not a bank statement. It stands on assumed win-back and at-risk rates. The <b>defensible</b> claim: break-even precision is <b>11%</b>, we operate at <b>87%</b> — an 8× margin means the program profits even if the assumptions are badly wrong.</p>
+          <p style="font-size:15px;margin:0"><b>Scope:</b> this is a model of the business, not a bank statement — it rests on assumed win-back and at-risk rates. The <b>defensible</b> claim is the margin: break-even precision is <b>11%</b>, the system operates at <b>87%</b>. An 8× margin means the programme profits even if those assumptions are badly wrong.</p>
         </div>
       </div>
     </div>
@@ -899,8 +899,8 @@ POST /review
 <!-- ============ 22 · Q&A PREEMPT ============ -->
 <section class="slide" id="s22">
   <div class="wrap">
-    <span class="kicker">Answered before you ask</span>
-    <h2>The seven questions</h2>
+    <span class="kicker">Summary</span>
+    <h2>The seven questions this project answers</h2>
     <div class="cols" style="gap:20px">
       <div>
         <div class="card" style="margin-bottom:10px;padding:13px 16px"><h3 style="font-size:16px">What problem?</h3><p style="font-size:14.5px;margin:0">Detect negative <b>and urgent</b> reviews in real time so support acts before the customer churns.</p></div>
@@ -943,8 +943,8 @@ POST /review
       </div>
       <div>
         <div class="card" style="border-left:3px solid var(--accent)">
-          <h3>What I'd defend in one line</h3>
-          <p style="font-size:16px;margin:0">Not "I trained a classifier" — but <b>"I built a system that turns text into a business decision, measured whether the expensive option was worth it, and let money choose the threshold."</b></p>
+          <h3>In one line</h3>
+          <p style="font-size:16px;margin:0">This is not a trained classifier. It is <b>a system that turns text into a business decision — one that measured whether the expensive option was worth it, and let cost choose the threshold.</b></p>
         </div>
         <div class="cols" style="grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
           <div class="card" style="text-align:center"><div class="stat good">0.900</div><div class="statlbl">F1 negative</div></div>
