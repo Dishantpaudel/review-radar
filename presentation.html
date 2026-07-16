@@ -1,557 +1,1110 @@
 <meta charset="utf-8">
-<title>review-radar — Real-Time Review Sentiment (Final Project)</title>
+<title>review-radar — Production Sentiment Intelligence</title>
 <style>
   :root{
     --bg:#ffffff; --panel:#f8fafc; --panel2:#f1f5f9;
-    --ink:#1f2937; --muted:#64748b; --line:#e2e8f0;
-    --accent:#4f46e5; --accent2:#6366f1;
+    --ink:#0f172a; --ink2:#334155; --muted:#64748b; --line:#e2e8f0;
+    --accent:#4f46e5; --accent2:#818cf8; --accent3:#6366f1;
     --pos:#16a34a; --neg:#dc2626; --warn:#d97706; --teal:#0d9488;
+    --dark:#0b1020;
     --shadow:0 10px 30px rgba(15,23,42,.08);
+    --shadow2:0 20px 50px rgba(15,23,42,.12);
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
-  body{font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#0b1020;-webkit-font-smoothing:antialiased;}
-  #bar{position:fixed;top:0;left:0;height:4px;background:var(--accent);width:0;z-index:50;transition:width .25s ease}
-  .slide{display:none;min-height:100vh;width:100%;padding:52px 72px 84px;background:var(--bg);flex-direction:column;justify-content:center;position:relative;}
+  body{font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--dark);-webkit-font-smoothing:antialiased}
+  #bar{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0;z-index:60;transition:width .3s ease}
+  .slide{display:none;min-height:100vh;width:100%;padding:48px 68px 80px;background:var(--bg);flex-direction:column;justify-content:center;position:relative}
   .slide.active{display:flex}
-  .wrap{max-width:1120px;margin:0 auto;width:100%}
-  .kicker{display:inline-block;font-size:14px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
-  h1{font-size:52px;line-height:1.08;margin:0 0 18px;font-weight:800;letter-spacing:-.02em}
-  h2{font-size:36px;line-height:1.12;margin:0 0 22px;font-weight:800;letter-spacing:-.01em}
-  h3{font-size:21px;margin:0 0 8px;font-weight:700}
-  p,li{font-size:19px;line-height:1.5;color:#334155}
-  .lead{font-size:23px;color:var(--muted);margin:0 0 8px}
-  ul{margin:0;padding-left:24px}
-  li{margin:9px 0}
-  li::marker{color:var(--accent)}
+  .wrap{max-width:1140px;margin:0 auto;width:100%}
+  .kicker{display:inline-block;font-size:12.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
+  h1{font-size:50px;line-height:1.06;margin:0 0 16px;font-weight:800;letter-spacing:-.03em}
+  h2{font-size:34px;line-height:1.14;margin:0 0 18px;font-weight:800;letter-spacing:-.02em}
+  h3{font-size:19px;margin:0 0 6px;font-weight:700}
+  p,li{font-size:17.5px;line-height:1.5;color:var(--ink2)}
+  .lead{font-size:21px;color:var(--muted);margin:0 0 6px}
+  ul{margin:0;padding-left:22px} li{margin:7px 0} li::marker{color:var(--accent)}
   .muted{color:var(--muted)}
-  .cols{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
-  .cols3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-  .cols4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;box-shadow:var(--shadow)}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}
+  .cols3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .cols4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow)}
   .card h3{color:var(--accent)}
-  .pill{display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:15px;font-weight:600;color:#475569;margin:4px 6px 4px 0}
-  .code{font-family:"SF Mono",Consolas,"Roboto Mono",monospace;font-size:14px;background:#0b1020;color:#e8ecff;padding:14px 16px;border-radius:10px;display:block;white-space:pre;overflow-x:auto;line-height:1.5}
-  .code .c{color:#7c88b1}.code .k{color:#c4b5fd}.code .s{color:#86efac}.code .f{color:#93c5fd}
-  .big{font-size:44px;font-weight:800;color:var(--accent);line-height:1}
-  .stat{font-size:52px;font-weight:800;color:var(--accent);line-height:1}
-  .statlbl{font-size:15px;color:var(--muted);margin-top:6px}
-  .formula{font-family:"Cambria Math",Georgia,serif;font-size:24px;background:#0b1020;color:#e8ecff;padding:16px 20px;border-radius:12px;display:inline-block;letter-spacing:.3px}
-  .good{color:var(--pos);font-weight:700}
-  .bad{color:var(--neg);font-weight:700}
-  .warnc{color:var(--warn);font-weight:700}
-  table{border-collapse:collapse;width:100%;font-size:18px}
-  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line)}
-  th{color:var(--muted);font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:.06em}
+  .pill{display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:13.5px;font-weight:600;color:#475569;margin:3px 5px 3px 0}
+  .pill.mono{font-family:"SF Mono",Consolas,monospace;font-size:12px;color:var(--accent);background:#eef2ff;border-color:#c7d2fe}
+  .code{font-family:"SF Mono",Consolas,monospace;font-size:13px;background:var(--dark);color:#e8ecff;padding:13px 15px;border-radius:10px;display:block;white-space:pre;overflow-x:auto;line-height:1.5}
+  .code .c{color:#7c88b1}.code .k{color:#c4b5fd}.code .s{color:#86efac}.code .f{color:#93c5fd}.code .n{color:#fca5a5}
+  .stat{font-size:46px;font-weight:800;color:var(--accent);line-height:1;letter-spacing:-.02em}
+  .statlbl{font-size:13.5px;color:var(--muted);margin-top:5px;line-height:1.35}
+  .formula{font-family:"Cambria Math",Georgia,serif;font-size:21px;background:var(--dark);color:#e8ecff;padding:14px 18px;border-radius:11px;display:inline-block}
+  .good{color:var(--pos);font-weight:700}.bad{color:var(--neg);font-weight:700}.warnc{color:var(--warn);font-weight:700}
+  table{border-collapse:collapse;width:100%;font-size:16px}
+  th,td{text-align:left;padding:8px 11px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
   td.n{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
-  .flow{display:flex;align-items:stretch;gap:12px;flex-wrap:wrap;margin-top:10px}
-  .node{flex:1;min-width:140px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px;text-align:center;box-shadow:var(--shadow)}
-  .node b{display:block;font-size:17px;margin-bottom:4px}
-  .node small{color:var(--muted);font-size:13px}
-  .arrow{display:flex;align-items:center;font-size:24px;color:var(--accent);font-weight:800}
-  .foot{position:absolute;bottom:26px;left:72px;right:72px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#94a3b8;border-top:1px solid var(--line);padding-top:12px}
-  .foot .tag{font-weight:700;color:#64748b;letter-spacing:.04em}
-  #s1{background:linear-gradient(135deg,#0b1020 0%,#1e1b4b 55%,#312e81 100%)}
-  #s1 .wrap *{color:#eef2ff}
+  tr.win{background:#f0fdf4}
+  .flow{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap;margin-top:8px}
+  .node{flex:1;min-width:130px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px;text-align:center;box-shadow:var(--shadow)}
+  .node b{display:block;font-size:15.5px;margin-bottom:3px}
+  .node small{color:var(--muted);font-size:12.5px}
+  .arrow{display:flex;align-items:center;font-size:20px;color:var(--accent2);font-weight:800}
+  .foot{position:absolute;bottom:24px;left:68px;right:68px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#94a3b8;border-top:1px solid var(--line);padding-top:10px}
+  .foot .tag{font-weight:800;color:#64748b;letter-spacing:.05em}
+  .route{display:inline-block;border-radius:7px;padding:3px 9px;font-size:13.5px;font-weight:700}
+  .r-urgent{background:#fee2e2;color:#b91c1c}.r-back{background:#fef3c7;color:#b45309}.r-anal{background:#dcfce7;color:#15803d}
+  .chartcap{font-size:13.5px;color:var(--muted);margin-top:5px}
+
+  /* ---------- HERO ---------- */
+  #s1{background:radial-gradient(1100px 600px at 75% -15%,#4338ca 0%,transparent 58%),linear-gradient(155deg,#080c1c 0%,#1e1b4b 60%,#312e81 100%);overflow:hidden;padding:0}
+  #s1 .wrap{max-width:1240px;display:grid;grid-template-columns:1.05fr 1fr;gap:40px;align-items:center;padding:0 68px}
+  #s1 *{color:#eef2ff}
   #s1 .kicker{color:#a5b4fc}
-  #s1 h1{font-size:62px}
-  #s1 .lead{color:#c7d2fe}
-  #s1 .meta{margin-top:30px;font-size:18px;color:#c7d2fe}
-  #s1 .foot{color:#818cf8;border-top-color:rgba(255,255,255,.15)}
+  #s1 h1{font-size:74px;letter-spacing:-.045em;margin-bottom:14px;line-height:.98}
+  #s1 h1 .g{background:linear-gradient(95deg,#a5b4fc,#e0e7ff 60%,#818cf8);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  #s1 .lead{color:#c7d2fe;font-size:20px;max-width:520px}
+  #s1 .foot{color:#818cf8;border-top-color:rgba(255,255,255,.14);left:68px;right:68px}
   #s1 .foot .tag{color:#a5b4fc}
-  #hint{position:fixed;bottom:14px;right:18px;font-size:12px;color:#64748b;z-index:50;background:#fff;border:1px solid var(--line);padding:6px 12px;border-radius:999px;box-shadow:var(--shadow)}
-  .chartcap{font-size:15px;color:var(--muted);margin-top:6px}
-  .tagrow{margin-top:8px}
-  .route{display:inline-block;border-radius:8px;padding:4px 10px;font-size:15px;font-weight:700}
-  .r-urgent{background:#fee2e2;color:#b91c1c}
-  .r-back{background:#fef3c7;color:#b45309}
-  .r-anal{background:#dcfce7;color:#15803d}
+  .hstats{display:flex;gap:26px;margin-top:30px}
+  .hstats .hs .v{font-size:34px;font-weight:800;letter-spacing:-.02em;color:#fff}
+  .hstats .hs .l{font-size:11.5px;text-transform:uppercase;letter-spacing:.1em;color:#a5b4fc;margin-top:2px}
+  .hero-badges{margin-top:26px;display:flex;gap:7px;flex-wrap:wrap}
+  .hero-badges span{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:5px 12px;font-size:12px;color:#dbeafe}
+
+  /* hero live viz */
+  .viz{position:relative;height:440px}
+  .viz .glow{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:260px;height:260px;border-radius:50%;
+    background:radial-gradient(circle,rgba(99,102,241,.5),transparent 65%);animation:breathe 3.4s ease-in-out infinite}
+  @keyframes breathe{0%,100%{opacity:.5;transform:translate(-50%,-50%) scale(1)}50%{opacity:.9;transform:translate(-50%,-50%) scale(1.14)}}
+  .rvcard{position:absolute;left:-6%;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(6px);
+    border-radius:9px;padding:7px 10px;font-size:11px;color:#e0e7ff;white-space:nowrap;max-width:210px;overflow:hidden;text-overflow:ellipsis;
+    animation:fly 6s linear infinite;opacity:0}
+  @keyframes fly{
+    0%{opacity:0;transform:translateX(0) scale(.9)}
+    12%{opacity:1}
+    46%{opacity:1;transform:translateX(190px) scale(1)}
+    54%{opacity:.25;transform:translateX(215px) scale(.85)}
+    100%{opacity:0;transform:translateX(215px) scale(.85)}
+  }
+  .outlane{position:absolute;right:0;width:150px;border-radius:9px;padding:8px 11px;font-size:11.5px;font-weight:700;
+    border:1px solid;opacity:.35;transition:opacity .35s, transform .35s}
+  .outlane.lit{opacity:1;transform:translateX(-6px)}
+  .ol-red{border-color:#f87171;background:rgba(248,113,113,.16);color:#fecaca;top:26%}
+  .ol-amb{border-color:#fbbf24;background:rgba(251,191,36,.14);color:#fde68a;top:46%}
+  .ol-grn{border-color:#4ade80;background:rgba(74,222,128,.14);color:#bbf7d0;top:66%}
+
+  /* ---------- MLflow UI mock ---------- */
+  .ui{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow2)}
+  .ui .bar{background:#f1f5f9;border-bottom:1px solid var(--line);padding:7px 12px;display:flex;align-items:center;gap:6px}
+  .ui .bar i{width:10px;height:10px;border-radius:50%;display:inline-block}
+  .ui .bar .t{font-family:"SF Mono",Consolas,monospace;font-size:11px;color:#64748b;margin-left:8px}
+  .ui .body{padding:12px 14px}
+  .ui table{font-size:13.5px}
+  .ui th,.ui td{padding:6px 9px}
+  .ui .rid{font-family:"SF Mono",Consolas,monospace;font-size:12px;color:var(--accent)}
+
+  /* ---------- interactive demo ---------- */
+  .demo{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
+  #dtext{width:100%;min-height:96px;border:2px solid var(--line);border-radius:11px;padding:11px 13px;font-size:15px;
+    font-family:inherit;resize:vertical;color:var(--ink);background:#fff}
+  #dtext:focus{outline:none;border-color:var(--accent)}
+  .exbtns{display:flex;gap:6px;flex-wrap:wrap;margin:9px 0}
+  .exbtn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 11px;font-size:12.5px;
+    cursor:pointer;color:#475569;font-weight:600;font-family:inherit;transition:all .15s}
+  .exbtn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .meter{height:11px;border-radius:99px;background:var(--panel2);overflow:hidden;margin:6px 0 3px}
+  .meter i{display:block;height:100%;border-radius:99px;transition:width .5s cubic-bezier(.4,0,.2,1);width:0}
+  .mrow{margin-bottom:12px}
+  .mrow .lab{display:flex;justify-content:space-between;font-size:13.5px;font-weight:700;color:var(--ink2)}
+  .mrow .lab b{font-variant-numeric:tabular-nums}
+  #droute{border-radius:11px;padding:13px 15px;font-size:19px;font-weight:800;text-align:center;transition:all .35s;border:2px solid}
+  .sigbox{font-size:12.5px;color:var(--muted);line-height:1.7;min-height:52px}
+  .sig{display:inline-block;background:#fee2e2;color:#b91c1c;border-radius:6px;padding:2px 7px;margin:2px 3px 2px 0;font-weight:700;font-size:11.5px}
+  .sig.w{background:#e0e7ff;color:#3730a3}
+  .wtag{display:inline-block;border-radius:6px;padding:2px 7px;margin:2px 3px 2px 0;font-size:11.5px;font-weight:700}
+  .wtag.neg{background:#fee2e2;color:#b91c1c}.wtag.pos{background:#dcfce7;color:#15803d}
+
+  #hint{position:fixed;bottom:12px;right:16px;font-size:11.5px;color:#64748b;z-index:60;background:#fff;border:1px solid var(--line);padding:5px 11px;border-radius:999px;box-shadow:var(--shadow)}
+
   @media print{
     #bar,#hint{display:none!important}
     @page{size:landscape;margin:0}
     body{background:#fff}
-    .slide{display:flex!important;min-height:100vh;height:100vh;page-break-after:always;padding:40px 58px 66px}
-    .card,.node{box-shadow:none}
-    #s1,.formula,.code,.route{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .slide{display:flex!important;min-height:100vh;height:100vh;page-break-after:always;padding:36px 54px 62px}
+    .card,.node,.ui{box-shadow:none}
+    #s1,.formula,.code,.route,.wtag,.sig,#droute,.ol-red,.ol-amb,.ol-grn{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .rvcard,.viz .glow{animation:none}
+    .outlane{opacity:1}
   }
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 
 <div id="bar"></div>
-<div id="hint">← → to navigate · click slide · <b>Ctrl/Cmd+P</b> → Save as PDF (landscape)</div>
+<div id="hint">← → navigate · <b>Ctrl/Cmd+P</b> → PDF</div>
 
-<!-- 1 · TITLE -->
+<!-- ============ 1 · HERO ============ -->
 <section class="slide active" id="s1">
   <div class="wrap">
-    <span class="kicker">Industrial Machine Learning · Final Project · Built &amp; Deployed</span>
-    <h1>review-radar</h1>
-    <p class="lead">A movie website that reads every review the second it arrives, spots the angry ones, and sends the truly urgent ones to a human — before the customer leaves.</p>
-    <div class="meta">
-      Presented by <b>Dipshant</b> &nbsp;·&nbsp; Harbour.Space · 2026<br>
-      <span style="font-family:monospace;font-size:15px">github.com/Dishantpaudel/review-radar</span>
+    <div>
+      <span class="kicker">Industrial Machine Learning · Harbour.Space 2026</span>
+      <h1>review<span class="g">-radar</span></h1>
+      <p class="lead">A production sentiment system that reads every customer review the moment it lands, separates the <b>angry</b> from the <b>urgent</b>, and puts a human in front of the customer before they churn.</p>
+      <div class="hstats">
+        <div class="hs"><div class="v" data-count="0.900" data-dec="3">0.000</div><div class="l">F1 negative</div></div>
+        <div class="hs"><div class="v" data-count="2" data-suf="ms">0ms</div><div class="l">Latency</div></div>
+        <div class="hs"><div class="v" data-count="10" data-suf="/10">0</div><div class="l">Tests green</div></div>
+      </div>
+      <div class="hero-badges">
+        <span>scikit-learn</span><span>MLflow</span><span>FastAPI</span><span>DistilBERT</span><span>pytest</span><span>reproducible</span>
+      </div>
+    </div>
+    <div class="viz" id="viz">
+      <div class="glow"></div>
+      <svg viewBox="0 0 460 440" style="position:absolute;inset:0;width:100%;height:100%" aria-hidden="true">
+        <defs>
+          <linearGradient id="lg" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#4338ca" stop-opacity="0"/><stop offset="50%" stop-color="#a5b4fc" stop-opacity=".9"/><stop offset="100%" stop-color="#4338ca" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <!-- neural net core -->
+        <g stroke="#818cf8" stroke-width="1" opacity=".45">
+          <line x1="185" y1="150" x2="245" y2="120"/><line x1="185" y1="150" x2="245" y2="190"/><line x1="185" y1="150" x2="245" y2="260"/>
+          <line x1="185" y1="220" x2="245" y2="120"/><line x1="185" y1="220" x2="245" y2="190"/><line x1="185" y1="220" x2="245" y2="260"/>
+          <line x1="185" y1="290" x2="245" y2="120"/><line x1="185" y1="290" x2="245" y2="190"/><line x1="185" y1="290" x2="245" y2="260"/>
+          <line x1="245" y1="120" x2="300" y2="170"/><line x1="245" y1="190" x2="300" y2="170"/><line x1="245" y1="260" x2="300" y2="170"/>
+          <line x1="245" y1="120" x2="300" y2="250"/><line x1="245" y1="190" x2="300" y2="250"/><line x1="245" y1="260" x2="300" y2="250"/>
+        </g>
+        <g fill="#c7d2fe">
+          <circle cx="185" cy="150" r="6"><animate attributeName="r" values="5;8;5" dur="2.2s" repeatCount="indefinite"/></circle>
+          <circle cx="185" cy="220" r="6"><animate attributeName="r" values="8;5;8" dur="2.6s" repeatCount="indefinite"/></circle>
+          <circle cx="185" cy="290" r="6"><animate attributeName="r" values="5;8;5" dur="3s" repeatCount="indefinite"/></circle>
+          <circle cx="245" cy="120" r="5"><animate attributeName="opacity" values=".4;1;.4" dur="2s" repeatCount="indefinite"/></circle>
+          <circle cx="245" cy="190" r="5"><animate attributeName="opacity" values="1;.4;1" dur="2.4s" repeatCount="indefinite"/></circle>
+          <circle cx="245" cy="260" r="5"><animate attributeName="opacity" values=".4;1;.4" dur="2.8s" repeatCount="indefinite"/></circle>
+        </g>
+        <g fill="#a5b4fc" font-size="9.5" font-family="monospace" opacity=".85">
+          <text x="292" y="166">P(neg)</text><text x="292" y="246">urgency</text>
+        </g>
+        <line x1="60" y1="415" x2="400" y2="415" stroke="url(#lg)" stroke-width="2"/>
+      </svg>
+      <div class="outlane ol-red" id="ol0">😠 support — now</div>
+      <div class="outlane ol-amb" id="ol1">📋 feedback backlog</div>
+      <div class="outlane ol-grn" id="ol2">📊 analytics</div>
     </div>
   </div>
-  <div class="foot"><span class="tag">SENTIMENT · NLP · MLOps</span><span>1 / 16</span></div>
+  <div class="foot"><span class="tag">PRODUCTION ML · NLP · MLOps</span><span>github.com/Dishantpaudel/review-radar</span></div>
 </section>
 
-<!-- 2 · PROBLEM -->
+<!-- ============ 2 · PROBLEM ============ -->
 <section class="slide" id="s2">
   <div class="wrap">
     <span class="kicker">The Problem</span>
-    <h2>Angry customers are hidden in the reviews</h2>
+    <h2>Churn signals arrive as text — and nobody reads them</h2>
     <div class="cols">
       <div>
         <ul>
-          <li>A movie website gets <b>~300,000 reviews a month</b>.</li>
-          <li>Nobody can read them all, so angry reviews are seen <b>too late</b> — after the customer already left.</li>
-          <li>An angry review is an <b>early warning</b>. Today it is ignored.</li>
-          <li>Goal: catch the warning in <b>seconds</b>, not weeks.</li>
+          <li>The platform receives <b>~300,000 reviews / month</b>.</li>
+          <li>Human review does not scale. Complaints surface <b>weeks late</b> — after the customer already left.</li>
+          <li>Each angry review is a <b>churn signal with a timer</b> on it.</li>
+          <li>The window to save a customer is <b>hours</b>, not weeks.</li>
         </ul>
+        <div class="card" style="margin-top:16px;border-left:3px solid var(--neg)">
+          <p style="margin:0;font-size:16px"><b>The cost of doing nothing:</b> every unanswered complaint is a customer walking out, plus a public review that deters the next buyer.</p>
+        </div>
       </div>
-      <div class="card" style="text-align:center">
-        <div class="stat">~95%</div>
-        <div class="statlbl">of consumers read reviews before choosing a product</div>
-        <hr style="border:none;border-top:1px solid var(--line);margin:16px 0">
-        <p class="muted" style="font-size:16px;margin:0">Every ignored complaint pushes a customer closer to leaving — and pushes future customers away too.</p>
+      <div class="cols" style="grid-template-columns:1fr 1fr;gap:14px">
+        <div class="card" style="text-align:center"><div class="stat">300k</div><div class="statlbl">reviews per month</div></div>
+        <div class="card" style="text-align:center"><div class="stat">~95%</div><div class="statlbl">of consumers read reviews before buying</div></div>
+        <div class="card" style="text-align:center"><div class="stat bad" style="color:var(--neg)">0</div><div class="statlbl">read in real time today</div></div>
+        <div class="card" style="text-align:center"><div class="stat good">&lt;2ms</div><div class="statlbl">our decision time</div></div>
       </div>
     </div>
   </div>
-  <div class="foot"><span class="tag">PROBLEM</span><span>2 / 16</span></div>
+  <div class="foot"><span class="tag">PROBLEM</span><span>2 / 23</span></div>
 </section>
 
-<!-- 3 · SOLUTION OVERVIEW -->
+<!-- ============ 3 · WHY ML ============ -->
 <section class="slide" id="s3">
   <div class="wrap">
-    <span class="kicker">The Solution · One Sentence</span>
-    <h2>Two scorers and a router</h2>
-    <div class="flow">
-      <div class="node"><b>📝 New review</b><small>arrives on the platform</small></div>
-      <div class="arrow">→</div>
-      <div class="node" style="border-color:var(--accent);border-width:2px"><b>🤖 Sentiment</b><small>P(negative), 0→1</small></div>
-      <div class="arrow">→</div>
-      <div class="node" style="border-color:var(--warn);border-width:2px"><b>🚨 Urgency</b><small>emergency or calm?</small></div>
-      <div class="arrow">→</div>
-      <div class="node"><b>🧭 Router</b><small>send to the right place</small></div>
+    <span class="kicker">Why Machine Learning at all?</span>
+    <h2>Because the alternatives break at scale</h2>
+    <div class="cols3">
+      <div class="card" style="border-top:3px solid var(--neg)">
+        <h3 style="color:var(--neg)">❌ Humans read them</h3>
+        <p style="font-size:16px">300k reviews × 30s each = <b>2,500 hours/month</b>. That's ~15 full-time staff, and they'd still be days behind.</p>
+      </div>
+      <div class="card" style="border-top:3px solid var(--warn)">
+        <h3 style="color:var(--warn)">❌ Keyword blacklist</h3>
+        <p style="font-size:16px">"bad" fires on <i>"not bad at all!"</i>. Misses sarcasm, misses phrasing nobody predicted. Endless manual upkeep.</p>
+      </div>
+      <div class="card" style="border-top:3px solid var(--pos)">
+        <h3 style="color:var(--pos)">✅ Learn from data</h3>
+        <p style="font-size:16px">The model reads <b>25,000 labeled examples</b> and derives the patterns itself — including ones no human would list.</p>
+      </div>
     </div>
-    <div class="flow" style="margin-top:18px">
-      <div class="node" style="border-color:var(--neg)"><b style="color:var(--neg)">Support — now</b><small>negative + urgent</small></div>
-      <div class="node" style="border-color:var(--warn)"><b style="color:var(--warn)">Feedback backlog</b><small>negative + calm</small></div>
-      <div class="node" style="border-color:var(--pos)"><b style="color:var(--pos)">Analytics</b><small>positive reviews</small></div>
+    <div class="card" style="margin-top:22px">
+      <p style="margin:0"><b>The honest nuance:</b> we still use rules — but only where rules are <i>better</i>. Sentiment is learned (ML); urgency is rule-based (transparent, auditable). <b>Right tool, right job.</b></p>
     </div>
-    <p class="lead" style="margin-top:22px">Everything runs live in <b>~2 milliseconds</b> per review — 50× faster than the &lt;100 ms promise.</p>
   </div>
-  <div class="foot"><span class="tag">SOLUTION</span><span>3 / 16</span></div>
+  <div class="foot"><span class="tag">MOTIVATION</span><span>3 / 23</span></div>
 </section>
 
-<!-- 4 · WHAT CHANGED (teacher feedback → built) -->
+<!-- ============ 4 · ML LIFECYCLE ============ -->
 <section class="slide" id="s4">
   <div class="wrap">
-    <span class="kicker">From Plan to Product</span>
-    <h2>The two feedbacks became two real features</h2>
-    <div class="cols">
-      <div class="card" style="border-color:var(--warn)">
-        <h3 style="color:var(--warn)">Feedback #1</h3>
-        <p><b>"Negative ≠ urgent."</b> Many negative reviews are calm feedback; only some need a human now.</p>
-        <p class="muted" style="font-size:16px;margin:10px 0 0">→ Built an <b>urgency scorer</b> + routing matrix. <span class="pill" style="margin:0">src/urgency.py</span></p>
+    <span class="kicker">The Machine Learning Lifecycle</span>
+    <h2>This is not a script — it's a pipeline</h2>
+    <div id="lifecycle" style="display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-top:6px">
+      <div class="node lc"><b>1</b><small>Collect data</small></div>
+      <div class="node lc"><b>2</b><small>Clean</small></div>
+      <div class="node lc"><b>3</b><small>Feature engineering</small></div>
+      <div class="node lc"><b>4</b><small>Train</small></div>
+      <div class="node lc"><b>5</b><small>Evaluate</small></div>
+      <div class="node lc"><b>6</b><small>Track in MLflow</small></div>
+      <div class="node lc"><b>7</b><small>Select best model</small></div>
+      <div class="node lc"><b>8</b><small>Save artifact</small></div>
+      <div class="node lc"><b>9</b><small>Deploy API</small></div>
+      <div class="node lc"><b>10</b><small>Monitor + retrain</small></div>
+    </div>
+    <div class="cols" style="margin-top:24px">
+      <div class="card">
+        <h3>Every stage has a file</h3>
+        <p style="font-size:16px;margin:0"><span class="pill mono">data.py</span><span class="pill mono">train.py</span><span class="pill mono">evaluate.py</span><span class="pill mono">experiments.py</span><span class="pill mono">threshold.py</span><span class="pill mono">urgency.py</span><span class="pill mono">predict.py</span><span class="pill mono">app.py</span></p>
       </div>
-      <div class="card" style="border-color:var(--warn)">
-        <h3 style="color:var(--warn)">Feedback #2</h3>
-        <p><b>"Optimize the threshold on money, not on F1."</b> Contacting costs $1, saving is worth $9.</p>
-        <p class="muted" style="font-size:16px;margin:10px 0 0">→ Built a <b>profit-vs-threshold</b> sweep. <span class="pill" style="margin:0">src/threshold.py</span></p>
+      <div class="card" style="border-left:3px solid var(--accent)">
+        <h3>Why the loop matters</h3>
+        <p style="font-size:16px;margin:0">Stage 10 feeds back into stage 1. Real reviews drift — new slang, new complaints, new products. <b>A model is a perishable good</b>, so retraining is designed in, not bolted on.</p>
       </div>
     </div>
-    <p class="lead" style="margin-top:22px">Both are covered in detail on slides 10–11. Everything else — data, model, service, tests — is a working, reproducible pipeline on GitHub.</p>
   </div>
-  <div class="foot"><span class="tag">RESPONSE TO FEEDBACK</span><span>4 / 16</span></div>
+  <div class="foot"><span class="tag">MLOps LIFECYCLE</span><span>4 / 23</span></div>
 </section>
 
-<!-- 5 · DATASET -->
+<!-- ============ 5 · ARCHITECTURE ============ -->
 <section class="slide" id="s5">
   <div class="wrap">
-    <span class="kicker">The Data</span>
+    <span class="kicker">System Architecture</span>
+    <h2>How a request actually flows</h2>
+    <svg viewBox="0 0 900 400" style="width:100%;max-height:60vh" id="archsvg" role="img" aria-label="System architecture diagram">
+      <defs>
+        <marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L7,3 z" fill="#818cf8"/>
+        </marker>
+        <style>
+          .anode rect{fill:#f8fafc;stroke:#cbd5e1;stroke-width:1.5;rx:11}
+          .anode text{font-family:-apple-system,Segoe UI,sans-serif;text-anchor:middle;fill:#0f172a}
+          .t1{font-size:14px;font-weight:700} .t2{font-size:11px;fill:#64748b}
+          .apath{stroke:#818cf8;stroke-width:2;fill:none;marker-end:url(#ah)}
+          .flowdot{fill:#4f46e5}
+        </style>
+      </defs>
+      <!-- user -->
+      <g class="anode"><rect x="385" y="8" width="130" height="44"/><text class="t1" x="450" y="28">👤 User</text><text class="t2" x="450" y="43">posts a review</text></g>
+      <path class="apath" d="M450,54 L450,80"/>
+      <!-- fastapi -->
+      <g class="anode"><rect x="345" y="84" width="210" height="50" style="fill:#eef2ff;stroke:#4f46e5;stroke-width:2"/><text class="t1" x="450" y="105">⚡ FastAPI Service</text><text class="t2" x="450" y="121">POST /review · service/app.py</text></g>
+      <path class="apath" d="M420,136 L300,172"/>
+      <path class="apath" d="M480,136 L600,172"/>
+      <!-- two scorers -->
+      <g class="anode"><rect x="170" y="176" width="200" height="58" style="stroke:#4f46e5"/><text class="t1" x="270" y="198">🤖 TF-IDF + LogReg</text><text class="t2" x="270" y="214">learned from 25k reviews</text><text class="t2" x="270" y="227">→ P(negative)</text></g>
+      <g class="anode"><rect x="530" y="176" width="200" height="58" style="stroke:#d97706"/><text class="t1" x="630" y="198">🚨 Urgency Engine</text><text class="t2" x="630" y="214">transparent rules</text><text class="t2" x="630" y="227">→ urgency + signals</text></g>
+      <path class="apath" d="M270,238 L420,272"/>
+      <path class="apath" d="M630,238 L480,272"/>
+      <!-- router -->
+      <g class="anode"><rect x="340" y="276" width="220" height="50" style="fill:#0b1020;stroke:#0b1020"/><text class="t1" x="450" y="297" style="fill:#fff">🧭 Business Router</text><text class="t2" x="450" y="313" style="fill:#a5b4fc">profit-optimal threshold = 0.44</text></g>
+      <path class="apath" d="M390,328 L200,358"/>
+      <path class="apath" d="M450,328 L450,358"/>
+      <path class="apath" d="M510,328 L700,358"/>
+      <!-- outputs -->
+      <g class="anode"><rect x="95" y="360" width="180" height="36" style="fill:#fee2e2;stroke:#dc2626"/><text class="t1" x="185" y="383" style="fill:#b91c1c">😠 Support — now</text></g>
+      <g class="anode"><rect x="360" y="360" width="180" height="36" style="fill:#fef3c7;stroke:#d97706"/><text class="t1" x="450" y="383" style="fill:#b45309">📋 Feedback backlog</text></g>
+      <g class="anode"><rect x="620" y="360" width="180" height="36" style="fill:#dcfce7;stroke:#16a34a"/><text class="t1" x="710" y="383" style="fill:#15803d">📊 Analytics</text></g>
+      <!-- side: mlflow + model store -->
+      <g class="anode"><rect x="20" y="84" width="150" height="50" style="fill:#f0fdfa;stroke:#0d9488;stroke-dasharray:4 3"/><text class="t1" x="95" y="105" style="fill:#0d9488">📊 MLflow</text><text class="t2" x="95" y="121">tracks every run</text></g>
+      <g class="anode"><rect x="730" y="84" width="150" height="50" style="fill:#f0fdfa;stroke:#0d9488;stroke-dasharray:4 3"/><text class="t1" x="805" y="105" style="fill:#0d9488">💾 Model store</text><text class="t2" x="805" y="121">tfidf_logreg.pkl</text></g>
+      <path d="M170,120 L340,120" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 3" fill="none"/>
+      <path d="M730,120 L560,120" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 3" fill="none"/>
+      <!-- animated flow dot -->
+      <circle class="flowdot" r="5">
+        <animateMotion dur="4s" repeatCount="indefinite"
+          path="M450,54 L450,84 L450,134 L300,176 L270,238 L420,276 L450,326 L200,360"/>
+        <animate attributeName="opacity" values="0;1;1;1;0" dur="4s" repeatCount="indefinite"/>
+      </circle>
+    </svg>
+  </div>
+  <div class="foot"><span class="tag">ARCHITECTURE</span><span>5 / 23</span></div>
+</section>
+
+<!-- ============ 6 · DATA ============ -->
+<section class="slide" id="s6">
+  <div class="wrap">
+    <span class="kicker">Step 1 · The Data</span>
     <h2>IMDB Large Movie Review Dataset</h2>
     <div class="cols">
       <div>
         <ul>
-          <li>From <b>Stanford</b> (Maas et al., 2011) — real IMDB reviews.</li>
-          <li><b>50,000 reviews</b>, labeled positive / negative.</li>
-          <li>Split <b>25k train / 25k test</b>, perfectly balanced (50/50).</li>
-          <li>Loaded in one line, downloads on first run.</li>
+          <li><b>Stanford</b>, Maas et al. 2011 — the field's standard sentiment benchmark.</li>
+          <li><b>50,000</b> real reviews, labeled positive / negative.</li>
+          <li><b>25k train / 25k test</b>, perfectly balanced 50/50.</li>
+          <li>Only strong opinions kept (≥7★ or ≤4★) → <b>clean labels</b>.</li>
         </ul>
-        <span class="code"><span class="k">from</span> datasets <span class="k">import</span> load_dataset
-load_dataset(<span class="s">"stanfordnlp/imdb"</span>)</span>
-      </div>
-      <div class="card">
-        <h3>Why it fits</h3>
-        <ul style="margin-top:6px">
-          <li>Big, clean, balanced — almost no cleaning.</li>
-          <li>The most-trusted benchmark for text models.</li>
-          <li>Movie reviews for a movie site.</li>
-        </ul>
-        <p class="muted" style="font-size:16px;margin:12px 0 0"><b>Honest note:</b> a stand-in. Real reviews are ~80% positive and include billing complaints. Production plan: retrain monthly on the site's own reviews.</p>
-      </div>
-    </div>
-  </div>
-  <div class="foot"><span class="tag">DATA</span><span>5 / 16</span></div>
-</section>
-
-<!-- 6 · MODEL 1 how it works -->
-<section class="slide" id="s6">
-  <div class="wrap">
-    <span class="kicker">Model 1 · How It Works</span>
-    <h2>Words → numbers → a probability</h2>
-    <div class="flow">
-      <div class="node"><b>1 · Text</b><small>"a total waste of time"</small></div>
-      <div class="arrow">→</div>
-      <div class="node" style="border-color:var(--accent)"><b>2 · TF-IDF</b><small>each word → a number;<br>rare+telling words score high</small></div>
-      <div class="arrow">→</div>
-      <div class="node" style="border-color:var(--accent)"><b>3 · Logistic Regression</b><small>each word has a weight;<br>add them up</small></div>
-      <div class="arrow">→</div>
-      <div class="node" style="border-color:var(--neg)"><b>4 · P(negative)</b><small>0.92</small></div>
-    </div>
-    <div class="cols" style="margin-top:24px">
-      <div class="card">
-        <h3>Why this model</h3>
-        <ul style="margin-top:6px;font-size:18px">
-          <li><b>Fast:</b> ~2 ms per review.</li>
-          <li><b>Cheap:</b> runs on any laptop, no GPU.</li>
-          <li><b>Explainable:</b> you can read the word weights.</li>
-        </ul>
-      </div>
-      <div class="card">
-        <h3>Most "negative" words it learned</h3>
-        <p class="muted" style="font-size:17px;margin:4px 0 0">worst · waste · boring · awful · terrible · poorly · disappointing</p>
-        <h3 style="margin-top:12px">Most "positive"</h3>
-        <p class="muted" style="font-size:17px;margin:4px 0 0">excellent · perfect · wonderful · brilliant · favorite</p>
-      </div>
-    </div>
-  </div>
-  <div class="foot"><span class="tag">MODEL · BASELINE</span><span>6 / 16</span></div>
-</section>
-
-<!-- 7 · RESULTS baseline -->
-<section class="slide" id="s7">
-  <div class="wrap">
-    <span class="kicker">Results · Baseline on 25,000 unseen reviews</span>
-    <h2>Passes the goal comfortably</h2>
-    <div class="cols" style="grid-template-columns:1fr 1fr;align-items:center">
-      <div class="cols" style="grid-template-columns:1fr 1fr;gap:16px">
-        <div class="card" style="text-align:center"><div class="stat good">0.90</div><div class="statlbl">F1 (negative)<br>goal ≥ 0.85 ✓</div></div>
-        <div class="card" style="text-align:center"><div class="stat">0.896</div><div class="statlbl">Recall<br>(angry reviews caught)</div></div>
-        <div class="card" style="text-align:center"><div class="stat">0.904</div><div class="statlbl">Precision<br>(flags that are right)</div></div>
-        <div class="card" style="text-align:center"><div class="stat good">1.00</div><div class="statlbl">Precision@1000<br>(top of the queue)</div></div>
+        <span class="code" style="margin-top:12px"><span class="k">from</span> datasets <span class="k">import</span> load_dataset
+load_dataset(<span class="s">"stanfordnlp/imdb"</span>)  <span class="c"># src/data.py</span></span>
       </div>
       <div>
-        <h3>What these mean</h3>
-        <ul style="font-size:18px">
-          <li><b>F1</b> — balance of catching angry reviews and not crying wolf. 0.90 &gt; 0.85 gate.</li>
-          <li><b>Recall 0.896</b> — catches ~90% of all angry reviews.</li>
-          <li><b>Precision@1000 = 1.00</b> — if support only works the 1,000 reviews the model is <i>most</i> sure about, <b>every single one</b> is genuinely negative. No wasted time.</li>
-        </ul>
+        <div class="card">
+          <h3>Why the train/test split is sacred</h3>
+          <p style="font-size:16px;margin:0">The model <b>never sees</b> the 25k test reviews during training. Grading on studied data would be an exam with the answers leaked. Every number in this deck comes from unseen data.</p>
+        </div>
+        <div class="card" style="margin-top:12px;border-left:3px solid var(--warn)">
+          <h3 style="color:var(--warn)">Honest limitation</h3>
+          <p style="font-size:16px;margin:0">IMDB is a <b>stand-in</b>: movie reviews, balanced 50/50. Real platform reviews are ~80% positive and contain billing complaints the model never saw. <b>Production plan: retrain monthly on our own reviews.</b></p>
+        </div>
       </div>
     </div>
   </div>
-  <div class="foot"><span class="tag">EVALUATION</span><span>7 / 16</span></div>
+  <div class="foot"><span class="tag">DATA</span><span>6 / 23</span></div>
 </section>
 
-<!-- 8 · MODEL 2 distilbert -->
+<!-- ============ 7 · FEATURE ENGINEERING ============ -->
+<section class="slide" id="s7">
+  <div class="wrap">
+    <span class="kicker">Step 2–3 · Preprocessing &amp; Feature Engineering</span>
+    <h2>Turning language into mathematics</h2>
+    <div class="flow">
+      <div class="node"><b>Raw text</b><small>"This Movie Was a TOTAL waste of time!!!"</small></div>
+      <div class="arrow">→</div>
+      <div class="node"><b>Tokenize</b><small>lowercase, strip punctuation,<br>split into words</small></div>
+      <div class="arrow">→</div>
+      <div class="node" style="border-color:var(--accent)"><b>TF-IDF</b><small>word → number<br>rare + telling = high</small></div>
+      <div class="arrow">→</div>
+      <div class="node" style="border-color:var(--accent)"><b>Vector</b><small>50,000 numbers<br>per review</small></div>
+    </div>
+    <div class="cols" style="margin-top:22px">
+      <div class="card">
+        <h3>Why TF-IDF, in one table</h3>
+        <table style="font-size:15px">
+          <tr><th>Word</th><th>Appears in</th><th class="n">Score</th></tr>
+          <tr><td>the, movie, was</td><td>almost every review</td><td class="n">≈ 0.00</td></tr>
+          <tr><td>waste</td><td>rare, opinionated</td><td class="n good">0.61</td></tr>
+        </table>
+        <p class="muted" style="font-size:14.5px;margin:8px 0 0">Filler gets crushed automatically. <b>Nobody writes the word list by hand.</b></p>
+      </div>
+      <div class="card" style="border-left:3px solid var(--accent)">
+        <h3>Bigrams earn their place</h3>
+        <p style="font-size:16px">We keep word <b>pairs</b>, not just single words — because <i>"not good"</i> flips <i>"good"</i>.</p>
+        <p style="font-size:15px;margin:8px 0 0">Proof from our trained model — two of its strongest features are pairs:<br>
+        <span class="wtag neg">"the worst" −5.74</span> <span class="wtag pos">"the best" +3.89</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="tag">FEATURE ENGINEERING</span><span>7 / 23</span></div>
+</section>
+
+<!-- ============ 8 · MODEL CHOICE RATIONALE ============ -->
 <section class="slide" id="s8">
   <div class="wrap">
-    <span class="kicker">Model 2 · The Modern Alternative</span>
-    <h2>Does a big AI model do better?</h2>
+    <span class="kicker">Step 4 · Model Selection — the questions a professor will ask</span>
+    <h2>Why this model, and not the others?</h2>
+    <table>
+      <tr><th>Candidate</th><th>Why we did / didn't pick it</th><th>Verdict</th></tr>
+      <tr class="win"><td><b>Logistic Regression</b></td><td>Linear models dominate high-dimensional sparse text. Convex → one global optimum. Outputs <b>calibrated probabilities</b> (essential: our threshold math depends on them). Weights are readable.</td><td class="good">SHIPPED</td></tr>
+      <tr><td>Random Forest</td><td>Trees split one feature at a time — hopeless across 50,000 sparse dimensions where signal is spread thin. Slower, bigger, and probabilities are poorly calibrated.</td><td class="muted">rejected</td></tr>
+      <tr><td>Linear SVM</td><td>Comparable accuracy — genuinely close. But outputs a <b>margin, not a probability</b>. We'd need Platt scaling to recover one. Extra step, no gain.</td><td class="muted">rejected</td></tr>
+      <tr><td>DistilBERT (pretrained)</td><td>Reads context, understands negation. Tested it properly — <b>tied</b> our baseline (0.898 vs 0.900) at ~100× the inference cost.</td><td class="warnc">benchmarked</td></tr>
+      <tr><td>Fine-tuned BERT</td><td>Would likely reach ~0.93. Needs a GPU and hours of training for <b>+3 points we don't need</b> — the gate is 0.85.</td><td class="muted">out of scope</td></tr>
+    </table>
+    <div class="card" style="margin-top:16px;border-left:3px solid var(--pos)">
+      <p style="margin:0"><b>The industrial answer:</b> the constraint isn't accuracy — we cleared the gate. It's <b>latency, cost, and explainability</b>. Picking the biggest model available is a student move. Proving the cheap one suffices is an engineering decision.</p>
+    </div>
+  </div>
+  <div class="foot"><span class="tag">MODEL SELECTION</span><span>8 / 23</span></div>
+</section>
+
+<!-- ============ 9 · HOW THE MODEL WORKS ============ -->
+<section class="slide" id="s9">
+  <div class="wrap">
+    <span class="kicker">Step 4 · Inside the Model</span>
+    <h2>Weights it actually learned</h2>
+    <div class="cols">
+      <div>
+        <p style="font-size:16.5px">Logistic Regression learns <b>one weight per feature</b>. Scoring = add the weights of the words present, squash into 0→1.</p>
+        <span class="code" style="margin:10px 0"><span class="c"># the whole model, conceptually</span>
+z = intercept + Σ (tfidf[word] × weight[word])
+P(negative) = 1 − sigmoid(z)</span>
+        <p class="muted" style="font-size:15px">Real numbers pulled from <code style="font-family:monospace">models/tfidf_logreg.pkl</code> — 50,000 learned features.</p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--neg)">Strongest "negative" features</h3>
+        <p style="margin:6px 0 0">
+          <span class="wtag neg">bad −7.91</span><span class="wtag neg">worst −7.19</span><span class="wtag neg">awful −5.85</span>
+          <span class="wtag neg">"the worst" −5.74</span><span class="wtag neg">boring −5.36</span><span class="wtag neg">poor −4.98</span>
+          <span class="wtag neg">waste −4.91</span><span class="wtag neg">terrible −4.40</span>
+        </p>
+        <h3 style="color:var(--pos);margin-top:14px">Strongest "positive" features</h3>
+        <p style="margin:6px 0 0">
+          <span class="wtag pos">great +7.08</span><span class="wtag pos">excellent +5.46</span><span class="wtag pos">wonderful +4.41</span>
+          <span class="wtag pos">perfect +4.38</span><span class="wtag pos">"the best" +3.89</span><span class="wtag pos">amazing +3.73</span>
+          <span class="wtag pos">love +3.52</span>
+        </p>
+        <p class="muted" style="font-size:14px;margin-top:12px"><b>This is explainability.</b> Any flagged review can be traced to the exact words that drove it. Try asking a 66M-parameter transformer for that.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="tag">MODEL INTERNALS</span><span>9 / 23</span></div>
+</section>
+
+<!-- ============ 10 · EVALUATION ============ -->
+<section class="slide" id="s10">
+  <div class="wrap">
+    <span class="kicker">Step 5 · Evaluation — on 25,000 unseen reviews</span>
+    <h2>Measuring what the business cares about</h2>
+    <div class="cols" style="grid-template-columns:.9fr 1.1fr">
+      <div class="cols" style="grid-template-columns:1fr 1fr;gap:13px">
+        <div class="card" style="text-align:center"><div class="stat good">0.900</div><div class="statlbl">F1 (negative)<br>gate ≥ 0.85 ✓</div></div>
+        <div class="card" style="text-align:center"><div class="stat">0.896</div><div class="statlbl">Recall<br>angry reviews caught</div></div>
+        <div class="card" style="text-align:center"><div class="stat">0.904</div><div class="statlbl">Precision<br>flags that are correct</div></div>
+        <div class="card" style="text-align:center"><div class="stat good">1.00</div><div class="statlbl">Precision@1000<br>top of the queue</div></div>
+      </div>
+      <div>
+        <div class="card" style="border-left:3px solid var(--neg)">
+          <h3 style="color:var(--neg)">Why NOT accuracy</h3>
+          <p style="font-size:16px;margin:0">In production ~80% of reviews are positive. A model that answers <i>"positive"</i> every single time scores <b>80% accuracy</b> — and catches <b>zero</b> angry customers. Accuracy rewards the useless model. So we measure the <b>negative class only</b>.</p>
+        </div>
+        <div class="card" style="margin-top:12px;border-left:3px solid var(--pos)">
+          <h3 style="color:var(--pos)">Why precision@k is the real KPI</h3>
+          <p style="font-size:16px;margin:0">Support has finite hours; they work the queue top-down. <b>Precision@1000 = 1.00</b> means the first thousand tickets are <b>all genuinely angry</b>. Zero wasted agent time where it counts.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="tag">EVALUATION</span><span>10 / 23</span></div>
+</section>
+
+<!-- ============ 11 · MLFLOW 1 ============ -->
+<section class="slide" id="s11">
+  <div class="wrap">
+    <span class="kicker">Step 6 · MLflow — what makes this <i>industrial</i></span>
+    <h2>Every run is recorded, forever</h2>
+    <div class="cols">
+      <div>
+        <p style="font-size:16.5px">Without tracking, ML is folklore: <i>"I think the good one had C=1... maybe?"</i> MLflow replaces memory with <b>evidence</b>.</p>
+        <table style="margin-top:10px">
+          <tr><th>MLflow records</th><th>Ours</th></tr>
+          <tr><td><b>Parameters</b> — the settings</td><td><code style="font-family:monospace;font-size:13px">max_features=50000, C=1.0, ngram=1-2</code></td></tr>
+          <tr><td><b>Metrics</b> — the scores</td><td><code style="font-family:monospace;font-size:13px">f1_negative=0.8998</code></td></tr>
+          <tr><td><b>Artifacts</b> — the outputs</td><td><code style="font-family:monospace;font-size:13px">tfidf_logreg.pkl</code></td></tr>
+          <tr><td><b>Run ID</b> — the fingerprint</td><td><code style="font-family:monospace;font-size:13px">3b3c9a50…</code></td></tr>
+        </table>
+        <span class="code" style="margin-top:12px"><span class="c"># src/train.py — 3 lines buy you reproducibility</span>
+mlflow.log_params({<span class="s">"C"</span>: C, <span class="s">"max_features"</span>: max_features})
+mlflow.log_metrics(metrics)
+mlflow.log_artifact(MODEL_PATH)</span>
+      </div>
+      <div class="card">
+        <h3>What it buys us</h3>
+        <ul style="font-size:16px">
+          <li><b>Reproducibility</b> — rebuild any model from its run ID, months later.</li>
+          <li><b>Comparison</b> — sort 5 experiments by F1, pick the winner with data.</li>
+          <li><b>Auditability</b> — "why is this model in production?" has a written answer.</li>
+          <li><b>No lost work</b> — every experiment survives, even the failures.</li>
+        </ul>
+        <p class="muted" style="font-size:14.5px;margin-top:12px"><b>See it live:</b><br><code style="font-family:monospace;font-size:12.5px">mlflow ui --backend-store-uri sqlite:///mlflow.db</code></p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="tag">MLflow · TRACKING</span><span>11 / 23</span></div>
+</section>
+
+<!-- ============ 12 · MLFLOW 2 · THE SWEEP ============ -->
+<section class="slide" id="s12">
+  <div class="wrap">
+    <span class="kicker">Step 6–7 · MLflow in action — real runs from this project</span>
+    <h2>Five experiments → compare → select the winner</h2>
+    <div class="ui">
+      <div class="bar"><i style="background:#f87171"></i><i style="background:#fbbf24"></i><i style="background:#4ade80"></i>
+        <span class="t">mlflow ui · experiment: review-radar: model sweep · sorted by f1_negative ▼</span></div>
+      <div class="body">
+        <table id="sweeptable">
+          <tr><th>Run</th><th>ngram</th><th class="n">max_features</th><th class="n">C</th><th class="n">F1 (neg)</th><th class="n">Recall</th><th></th></tr>
+          <tr><td><span class="rid">ab97f3be</span> E 🏆</td><td>1-2</td><td class="n">50,000</td><td class="n">10.0</td><td class="n good">0.9030</td><td class="n">0.9028</td><td class="n" style="font-size:11px;color:#94a3b8">best F1</td></tr>
+          <tr class="win"><td><span class="rid">4adc4a44</span> C <span class="pill" style="margin:0;font-size:10px">SHIPPED</span></td><td>1-2</td><td class="n">50,000</td><td class="n">1.0</td><td class="n">0.8998</td><td class="n">0.8961</td><td class="n" style="font-size:11px;color:#94a3b8"></td></tr>
+          <tr><td><span class="rid">8cc7a0c9</span> B</td><td>1-1</td><td class="n">50,000</td><td class="n">1.0</td><td class="n">0.8889</td><td class="n">0.8877</td><td class="n" style="font-size:11px;color:#94a3b8"></td></tr>
+          <tr><td><span class="rid">49aeccf8</span> A</td><td>1-1</td><td class="n">3,000</td><td class="n">1.0</td><td class="n">0.8825</td><td class="n">0.8774</td><td class="n" style="font-size:11px;color:#94a3b8"></td></tr>
+          <tr><td><span class="rid">c145cdae</span> D</td><td>1-2</td><td class="n">50,000</td><td class="n">0.1</td><td class="n">0.8684</td><td class="n">0.8565</td><td class="n" style="font-size:11px;color:#94a3b8"></td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="cols" style="margin-top:18px">
+      <div class="card" style="border-left:3px solid var(--accent)">
+        <h3>What the sweep actually found</h3>
+        <table style="font-size:14.5px;margin:0">
+          <tr><td>3k → 50k vocabulary</td><td class="n good">+0.006</td></tr>
+          <tr><td><b>adding bigrams</b></td><td class="n good"><b>+0.011</b> ← the real win</td></tr>
+          <tr><td>C = 0.1 (over-regularized)</td><td class="n bad">−0.031</td></tr>
+          <tr><td>C = 10 (run E)</td><td class="n">+0.003</td></tr>
+        </table>
+      </div>
+      <div class="card" style="border-left:3px solid var(--warn)">
+        <h3 style="color:var(--warn)">The honest read</h3>
+        <p style="font-size:15.5px;margin:0">Run <b>E edges the shipped model by +0.003</b> — that's <b>noise</b>, not a discovery, and it's the <i>less</i> regularized model. It's logged as a promotion candidate pending proper cross-validation, <b>not</b> shipped on one test-set reading. Bigrams were the genuine win. <b>This is what tracking is for: the finding is recorded, not remembered.</b></p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="tag">MLflow · MODEL SELECTION</span><span>12 / 23</span></div>
+</section>
+
+<!-- ============ 13 · DISTILBERT ============ -->
+<section class="slide" id="s13">
+  <div class="wrap">
+    <span class="kicker">Benchmark · The Modern Alternative</span>
+    <h2>We tested the transformer properly</h2>
     <div class="cols">
       <div>
         <ul>
-          <li>Tested <b>DistilBERT</b> — a small, fast cousin of the models behind ChatGPT, already trained for sentiment (SST-2).</li>
-          <li><b>No training needed</b> — used it straight off the shelf, so it runs on CPU.</li>
-          <li>Scored 3,000 random test reviews and measured the same metrics.</li>
+          <li><b>DistilBERT</b> (SST-2) — a distilled BERT, same family as the models behind modern chatbots.</li>
+          <li>Used <b>pretrained</b>, no fine-tuning → runs on CPU, no GPU bill.</li>
+          <li>Scored <b>3,000</b> random test reviews, identical metrics, logged to MLflow.</li>
         </ul>
-        <div class="card" style="margin-top:14px">
-          <h3>Result: a tie</h3>
-          <p style="margin:4px 0 0">F1 = <b>0.898</b> vs the baseline's <b>0.900</b>. Fine-tuning it on IMDB could reach ~0.93, but that needs a GPU.</p>
+        <div class="card" style="margin-top:14px;border-left:3px solid var(--warn)">
+          <h3>Why bother, if we ship the simple one?</h3>
+          <p style="font-size:16px;margin:0">Because <b>"we didn't try it"</b> is not an answer. Now we can say: we measured it, and the gain didn't justify the cost. That's the difference between a preference and a <b>decision</b>.</p>
         </div>
       </div>
       <div class="card">
-        <h3>What is DistilBERT?</h3>
-        <p style="font-size:18px">It reads a sentence <b>in context</b> — it knows "not good" is negative even though "good" is a positive word. The baseline sees words mostly one at a time.</p>
-        <p style="font-size:18px;margin-top:10px">More powerful, but <b>~100× more expensive</b> to run and a black box — you can't easily see <i>why</i> it decided.</p>
+        <h3>What DistilBERT does differently</h3>
+        <p style="font-size:16px">It reads words <b>in context</b> — it knows <i>"not good"</i> is negative, and handles phrasing it never literally saw. Our baseline approximates this with bigrams.</p>
+        <p style="font-size:16px;margin-top:10px"><b>The catch:</b> 66 million parameters vs our ~50k weights. ~100× slower per review, and it cannot tell you <i>why</i> it decided.</p>
+        <div style="text-align:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)">
+          <div class="stat" style="font-size:38px">0.898</div>
+          <div class="statlbl">DistilBERT F1 — vs baseline <b>0.900</b></div>
+        </div>
       </div>
     </div>
   </div>
-  <div class="foot"><span class="tag">MODEL · TRANSFORMER</span><span>8 / 16</span></div>
+  <div class="foot"><span class="tag">BENCHMARK</span><span>13 / 23</span></div>
 </section>
 
-<!-- 9 · comparison + decision -->
-<section class="slide" id="s9">
+<!-- ============ 14 · DECISION ============ -->
+<section class="slide" id="s14">
   <div class="wrap">
     <span class="kicker">The Engineering Decision</span>
-    <h2>Ship the simple model</h2>
-    <table style="margin-bottom:16px">
-      <tr><th>Model</th><th class="n">F1 (neg)</th><th class="n">Recall</th><th class="n">Precision</th><th>Speed</th><th>Explainable?</th></tr>
-      <tr><td>Constant guess</td><td class="n">0.50</td><td class="n">—</td><td class="n">—</td><td>—</td><td>—</td></tr>
-      <tr><td><b>TF-IDF + LogReg</b> <span class="pill" style="margin:0">shipped</span></td><td class="n good">0.900</td><td class="n">0.896</td><td class="n">0.904</td><td>~2 ms</td><td class="good">Yes</td></tr>
-      <tr><td>DistilBERT (pretrained)</td><td class="n">0.898</td><td class="n">0.913</td><td class="n">0.885</td><td>~100× slower</td><td class="bad">No</td></tr>
+    <h2>Ship the simple model — on purpose</h2>
+    <table style="margin-bottom:14px">
+      <tr><th>Model</th><th class="n">F1 (neg)</th><th class="n">Recall</th><th class="n">Precision</th><th>Latency</th><th>Cost</th><th>Explainable</th></tr>
+      <tr><td>Constant guess</td><td class="n">0.50</td><td class="n">—</td><td class="n">—</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr class="win"><td><b>TF-IDF + LogReg</b> <span class="pill" style="margin:0;font-size:11px">SHIPPED</span></td><td class="n good">0.900</td><td class="n">0.896</td><td class="n">0.904</td><td class="good">~2 ms</td><td class="good">CPU, ~0</td><td class="good">Yes ✓</td></tr>
+      <tr><td>DistilBERT pretrained</td><td class="n">0.898</td><td class="n">0.913</td><td class="n">0.885</td><td class="bad">~100× slower</td><td class="bad">high</td><td class="bad">No</td></tr>
+      <tr><td>Fine-tuned BERT <span class="muted" style="font-size:12px">(est.)</span></td><td class="n">~0.93</td><td class="n">—</td><td class="n">—</td><td class="bad">slow</td><td class="bad">GPU hours</td><td class="bad">No</td></tr>
     </table>
-    <p class="lead">Same quality. The simple model is far cheaper, fully explainable, and precision@1000 = 1.00. <b>The fancy model is the upgrade path, not the starting point.</b></p>
+    <div class="cols3">
+      <div class="card"><h3>Latency</h3><p style="font-size:15.5px;margin:0">300k reviews/month in real time. 2 ms scales on one CPU box. 200 ms doesn't.</p></div>
+      <div class="card"><h3>Inference cost</h3><p style="font-size:15.5px;margin:0">3.6M predictions/year. At transformer prices that's a GPU fleet for <b>−0.002 F1</b>.</p></div>
+      <div class="card"><h3>Explainability</h3><p style="font-size:15.5px;margin:0">Support asks "why was this escalated?" We answer with words. Compliance likes that.</p></div>
+    </div>
   </div>
-  <div class="foot"><span class="tag">DECISION</span><span>9 / 16</span></div>
+  <div class="foot"><span class="tag">DECISION</span><span>14 / 23</span></div>
 </section>
 
-<!-- 10 · FEEDBACK 1 urgency -->
-<section class="slide" id="s10">
+<!-- ============ 15 · FEEDBACK 1 ============ -->
+<section class="slide" id="s15">
   <div class="wrap">
-    <span class="kicker">Teacher Feedback #1 · Answered</span>
-    <h2>Negative is not the same as urgent</h2>
+    <span class="kicker">Review Feedback #1 · Answered in code</span>
+    <h2>"Negative" and "urgent" are different questions</h2>
     <div class="cols">
       <div>
-        <p>A second scorer runs <b>after</b> sentiment. Rule-based on purpose, so support can see <b>exactly why</b> a review was escalated.</p>
-        <h3 style="margin-top:12px">Signals it looks for</h3>
-        <ul style="font-size:18px">
-          <li><b>Churn</b> (heaviest): cancel · refund · never again · switching to</li>
-          <li><b>Money:</b> charged · billing · took my money</li>
-          <li><b>Anger:</b> scam · unacceptable · worst</li>
-          <li><b>Shouting:</b> lots of !!! and ALL-CAPS</li>
-        </ul>
-      </div>
-      <div class="card">
-        <h3>The routing matrix</h3>
-        <table style="font-size:17px">
-          <tr><th>Sentiment</th><th>Urgency</th><th>Route</th></tr>
-          <tr><td>Negative</td><td>High</td><td><span class="route r-urgent">support — now</span></td></tr>
-          <tr><td>Negative</td><td>Low</td><td><span class="route r-back">feedback backlog</span></td></tr>
-          <tr><td>Positive</td><td>—</td><td><span class="route r-anal">analytics</span></td></tr>
+        <p style="font-size:16.5px">Most negative reviews are <b>constructive criticism</b> — valuable, but not an emergency. Routing all of them to support drowns the team and buries the real fires.</p>
+        <h3 style="margin-top:14px">A second scorer, deliberately rule-based</h3>
+        <table style="font-size:15px">
+          <tr><th>Signal</th><th>Examples</th><th class="n">Weight</th></tr>
+          <tr><td><b>Churn intent</b></td><td>cancel · refund · never again</td><td class="n">0.45</td></tr>
+          <tr><td><b>Money</b></td><td>charged · billing · overcharged</td><td class="n">0.30</td></tr>
+          <tr><td><b>Anger</b></td><td>scam · unacceptable · fraud</td><td class="n">0.15</td></tr>
+          <tr><td><b>Shouting</b></td><td>!!! · ALL-CAPS ratio</td><td class="n">0.10</td></tr>
         </table>
-        <p class="muted" style="font-size:15px;margin:12px 0 0">Live example: <i>"Charged twice, I want a REFUND, cancelling today!!!"</i> → urgency <b>0.99</b> → <span class="route r-urgent">support — now</span></p>
+      </div>
+      <div>
+        <div class="card">
+          <h3>Routing matrix</h3>
+          <table style="font-size:15.5px">
+            <tr><th>Sentiment</th><th>Urgency</th><th>Route</th></tr>
+            <tr><td>Negative</td><td>High</td><td><span class="route r-urgent">support — now</span></td></tr>
+            <tr><td>Negative</td><td>Low</td><td><span class="route r-back">feedback backlog</span></td></tr>
+            <tr><td>Positive</td><td>—</td><td><span class="route r-anal">analytics</span></td></tr>
+          </table>
+        </div>
+        <div class="card" style="margin-top:12px;border-left:3px solid var(--accent)">
+          <h3>Why rules, not ML, here?</h3>
+          <p style="font-size:15.5px;margin:0">A support lead must see <b>exactly why</b> a ticket jumped the queue. Our scorer returns the literal matched words. A black box saying <i>"trust me, it's urgent"</i> is unusable in an operational workflow — and impossible to appeal.</p>
+        </div>
       </div>
     </div>
   </div>
-  <div class="foot"><span class="tag">FEEDBACK #1</span><span>10 / 16</span></div>
+  <div class="foot"><span class="tag">FEEDBACK #1 · URGENCY ENGINE</span><span>15 / 23</span></div>
 </section>
 
-<!-- 11 · FEEDBACK 2 threshold -->
-<section class="slide" id="s11">
+<!-- ============ 16 · FEEDBACK 2 ============ -->
+<section class="slide" id="s16">
   <div class="wrap">
-    <span class="kicker">Teacher Feedback #2 · Answered</span>
-    <h2>Choose the threshold for money, not F1</h2>
-    <div class="cols" style="grid-template-columns:1fr 1fr;align-items:center">
+    <span class="kicker">Review Feedback #2 · Answered in code</span>
+    <h2>The threshold is a business decision, not an ML one</h2>
+    <div class="cols" style="align-items:center">
       <div>
-        <p>The cut-off score for "act on this" was 0.5 by default. But the economics say otherwise:</p>
-        <div class="formula" style="font-size:21px">break-even precision = C / (r·ARPU·M)<br>= $1 / $9 ≈ <span style="color:#86efac">0.11</span></div>
-        <ul style="margin-top:14px;font-size:18px">
-          <li>You profit even if <b>89% of contacts are "wasted."</b></li>
-          <li>So the model should flag <b>more</b> reviews, not fewer.</li>
+        <p style="font-size:16.5px">The cut-off for "act on this" defaulted to <b>0.5</b> — an arbitrary convention. The economics say otherwise:</p>
+        <div class="formula" style="font-size:19px;margin:10px 0">break-even precision = C / (r · ARPU · M)<br>= $1 / (0.15 × $10 × 6) = $1/$9 ≈ <span style="color:#86efac">0.11</span></div>
+        <ul style="font-size:16.5px">
+          <li>Contact costs <b>$1</b>. A save is worth <b>$9</b>.</li>
+          <li>We profit even if <b>89% of outreach is "wasted."</b></li>
+          <li>⇒ the model should flag <b>more</b>, not fewer.</li>
         </ul>
       </div>
       <div class="card">
-        <h3>What the sweep found</h3>
-        <table style="font-size:18px">
+        <h3>What the sweep found <span class="pill mono" style="margin:0">src/threshold.py</span></h3>
+        <table style="font-size:16.5px">
           <tr><td>Break-even precision</td><td class="n">0.11</td></tr>
           <tr><td>Default threshold</td><td class="n">0.50</td></tr>
-          <tr><td><b>Profit-optimal threshold</b></td><td class="n good">0.44</td></tr>
-          <tr><td>Precision there</td><td class="n">0.87</td></tr>
+          <tr class="win"><td><b>Profit-optimal threshold</b></td><td class="n good">0.44</td></tr>
+          <tr><td>Precision at optimum</td><td class="n">0.87</td></tr>
           <tr><td>Safety margin vs break-even</td><td class="n good">8×</td></tr>
+          <tr><td>Contacted / month</td><td class="n">159,948</td></tr>
         </table>
-        <p class="muted" style="font-size:15px;margin:12px 0 0">Optimal threshold landed <b>below 0.5</b> — exactly the direction predicted. Threshold is now a <b>business decision</b>, re-run whenever costs change.</p>
+        <p class="muted" style="font-size:14.5px;margin-top:10px">Optimum landed <b>below 0.5</b> — exactly the predicted direction. Re-run the sweep whenever costs change and the threshold updates itself.</p>
       </div>
     </div>
   </div>
-  <div class="foot"><span class="tag">FEEDBACK #2</span><span>11 / 16</span></div>
+  <div class="foot"><span class="tag">FEEDBACK #2 · THRESHOLD</span><span>16 / 23</span></div>
 </section>
 
-<!-- 12 · profit curve chart -->
-<section class="slide" id="s12">
+<!-- ============ 17 · PROFIT CURVE ============ -->
+<section class="slide" id="s17">
   <div class="wrap">
-    <span class="kicker">Feedback #2 · The Picture</span>
+    <span class="kicker">Feedback #2 · The evidence</span>
     <h2>Profit vs threshold</h2>
-    <div class="cols" style="grid-template-columns:1.4fr 1fr;align-items:center">
+    <div class="cols" style="grid-template-columns:1.45fr 1fr;align-items:center">
       <div>
-        <svg viewBox="0 0 640 340" width="100%" role="img" aria-label="Profit versus threshold curve">
+        <svg viewBox="0 0 640 330" width="100%" role="img" aria-label="Profit versus threshold curve">
           <g stroke="#e2e8f0" stroke-width="1">
-            <line x1="60" y1="40" x2="620" y2="40"/><line x1="60" y1="110" x2="620" y2="110"/>
-            <line x1="60" y1="180" x2="620" y2="180"/><line x1="60" y1="250" x2="620" y2="250"/>
-            <line x1="60" y1="290" x2="620" y2="290"/>
+            <line x1="62" y1="40" x2="620" y2="40"/><line x1="62" y1="110" x2="620" y2="110"/>
+            <line x1="62" y1="180" x2="620" y2="180"/><line x1="62" y1="250" x2="620" y2="250"/>
+            <line x1="62" y1="288" x2="620" y2="288"/>
           </g>
-          <g fill="#94a3b8" font-size="12" text-anchor="end">
-            <text x="52" y="44">$220k</text><text x="52" y="184">$120k</text><text x="52" y="294">$0</text>
+          <g fill="#94a3b8" font-size="11.5" text-anchor="end">
+            <text x="54" y="44">$220k</text><text x="54" y="114">$180k</text><text x="54" y="184">$120k</text><text x="54" y="254">$60k</text><text x="54" y="292">$0</text>
           </g>
-          <!-- profit curve: rises, peaks near t=0.44, falls -->
-          <path d="M60,250 C160,150 250,70 320,66 C400,62 480,120 560,210 L600,268"
-                fill="none" stroke="#4f46e5" stroke-width="3"/>
-          <!-- optimal marker at ~x=305 (t=0.44) -->
-          <line x1="305" y1="66" x2="305" y2="290" stroke="#16a34a" stroke-width="2" stroke-dasharray="5 5"/>
-          <circle cx="305" cy="66" r="6" fill="#16a34a"/>
-          <text x="312" y="60" fill="#16a34a" font-size="13" font-weight="700">optimal t = 0.44</text>
-          <!-- default marker at t=0.50 ~x=340 -->
-          <line x1="340" y1="70" x2="340" y2="290" stroke="#dc2626" stroke-width="2" stroke-dasharray="5 5"/>
-          <text x="347" y="86" fill="#dc2626" font-size="13" font-weight="700">default 0.50</text>
-          <g fill="#475569" font-size="13" text-anchor="middle">
-            <text x="60" y="312">0.0</text><text x="340" y="312">0.5</text><text x="620" y="312">1.0</text>
-            <text x="340" y="332" fill="#94a3b8">decision threshold on P(negative)</text>
+          <path d="M62,252 C150,150 240,72 318,64 C400,58 490,116 566,200 L604,266"
+                fill="none" stroke="#4f46e5" stroke-width="3.5"/>
+          <line x1="318" y1="64" x2="318" y2="288" stroke="#16a34a" stroke-width="2" stroke-dasharray="5 4"/>
+          <circle cx="318" cy="64" r="6.5" fill="#16a34a"/>
+          <text x="326" y="57" fill="#16a34a" font-size="12.5" font-weight="700">optimal t = 0.44 → $216k/mo</text>
+          <line x1="341" y1="66" x2="341" y2="288" stroke="#dc2626" stroke-width="2" stroke-dasharray="5 4"/>
+          <text x="349" y="86" fill="#dc2626" font-size="12.5" font-weight="700">default 0.50 → $214k</text>
+          <g fill="#475569" font-size="12" text-anchor="middle">
+            <text x="62" y="308">0.0</text><text x="341" y="308">0.5</text><text x="620" y="308">1.0</text>
+            <text x="341" y="326" fill="#94a3b8">decision threshold on P(negative)</text>
           </g>
         </svg>
       </div>
       <div>
-        <ul style="font-size:18px">
-          <li>Contact more people → catch more at-risk customers → <b>more profit</b>, until precision drops toward the 11% break-even.</li>
+        <ul style="font-size:16px">
+          <li>Flag more → catch more at-risk customers → more profit, until precision approaches the <b>11% floor</b>.</li>
           <li>The peak sits <b>left of 0.5</b>.</li>
-          <li>On this very confident model the gain is modest (~$1.9k/mo); with noisy or imbalanced real data the gap grows. <b>The method is the deliverable.</b></li>
         </ul>
+        <div class="card" style="margin-top:12px;border-left:3px solid var(--warn)">
+          <h3 style="color:var(--warn)">Intellectual honesty</h3>
+          <p style="font-size:15.5px;margin:0">On <i>this</i> model the gain is modest (~$1.9k/mo) because it's well-calibrated and rarely outputs mid-range scores. With noisier or imbalanced production data the gap widens sharply. <b>The reusable method is the deliverable — not one lucky number.</b></p>
+        </div>
       </div>
     </div>
   </div>
-  <div class="foot"><span class="tag">FEEDBACK #2</span><span>12 / 16</span></div>
+  <div class="foot"><span class="tag">FEEDBACK #2 · EVIDENCE</span><span>17 / 23</span></div>
 </section>
 
-<!-- 13 · LIVE SERVICE -->
-<section class="slide" id="s13">
+<!-- ============ 18 · LIVE DEMO ============ -->
+<section class="slide" id="s18">
   <div class="wrap">
-    <span class="kicker">The Live Service</span>
-    <h2>One API call, one decision</h2>
+    <span class="kicker">Live Demo · running in this browser, right now</span>
+    <h2>Type a review. Watch it get routed.</h2>
+    <div class="demo">
+      <div>
+        <textarea id="dtext" spellcheck="false">Absolutely terrible. I was charged twice for a broken stream and support ignored me. I want a REFUND — cancelling today!!!</textarea>
+        <div class="exbtns">
+          <button class="exbtn" data-ex="angry">😠 Angry + churn</button>
+          <button class="exbtn" data-ex="calm">📋 Calm criticism</button>
+          <button class="exbtn" data-ex="happy">😊 Positive</button>
+          <button class="exbtn" data-ex="billing">💳 Billing rage</button>
+        </div>
+        <div class="card" style="padding:12px 14px">
+          <div style="font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;margin-bottom:6px">Words driving the sentiment score</div>
+          <div class="sigbox" id="dwords">—</div>
+        </div>
+      </div>
+      <div>
+        <div class="mrow">
+          <div class="lab"><span>P(negative) — the ML model</span><b id="dpv">0.00</b></div>
+          <div class="meter"><i id="dpm" style="background:linear-gradient(90deg,#818cf8,#dc2626)"></i></div>
+        </div>
+        <div class="mrow">
+          <div class="lab"><span>Urgency — the rule engine</span><b id="duv">0.00</b></div>
+          <div class="meter"><i id="dum" style="background:linear-gradient(90deg,#fbbf24,#dc2626)"></i></div>
+        </div>
+        <div class="card" style="padding:12px 14px;margin-bottom:12px">
+          <div style="font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;margin-bottom:6px">Urgency signals that fired</div>
+          <div class="sigbox" id="dsig">—</div>
+        </div>
+        <div id="droute" style="background:var(--panel2);border-color:var(--line);color:var(--muted)">—</div>
+        <p class="muted" style="font-size:12.5px;margin-top:10px">Real logistic-regression inference in JavaScript — 3,000-word model exported from the pipeline (F1 = 0.883, agrees with the shipped 50k model on <b>94.8%</b> of test reviews). The urgency engine is a <b>line-for-line</b> port of <code style="font-family:monospace;font-size:12px">src/urgency.py</code>.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="tag">LIVE DEMO</span><span>18 / 23</span></div>
+</section>
+
+<!-- ============ 19 · API ============ -->
+<section class="slide" id="s19">
+  <div class="wrap">
+    <span class="kicker">Step 8–9 · Deployment</span>
+    <h2>The model behind an API</h2>
     <div class="cols">
       <div>
-        <p>A small web server (<b>FastAPI</b>). Send a review, get back the score, the urgency, and the route.</p>
-        <span class="code"><span class="c"># request</span>
+        <p style="font-size:16.5px">A model in a notebook helps nobody. <b>FastAPI</b> turns it into a service the platform can call on every review event.</p>
+        <span class="code" style="margin-top:10px"><span class="c"># the platform sends</span>
 POST /review
 { <span class="s">"text"</span>: <span class="s">"Charged twice, cancelling!!!"</span> }
 
-<span class="c"># response  (~2 ms)</span>
+<span class="c"># answer in ~2 ms</span>
 {
-  <span class="f">"p_negative"</span>: <span style="color:#fca5a5">0.80</span>,
-  <span class="f">"urgency"</span>:    <span style="color:#fca5a5">0.99</span>,
-  <span class="f">"route"</span>:      <span class="s">"support_urgent"</span>
+  <span class="f">"p_negative"</span>:      <span class="n">0.8041</span>,
+  <span class="f">"urgency"</span>:         <span class="n">0.989</span>,
+  <span class="f">"urgency_signals"</span>: { <span class="f">"churn_phrases"</span>: [<span class="s">"cancel"</span>,<span class="s">"refund"</span>] },
+  <span class="f">"route"</span>:           <span class="s">"support_urgent"</span>,
+  <span class="f">"latency_ms"</span>:      <span class="n">2.32</span>
 }</span>
       </div>
       <div class="card">
-        <h3>Try it yourself</h3>
-        <p style="font-size:18px">Run the server, then open the free interactive page:</p>
-        <span class="code">uvicorn service.app:app --port 8000</span>
-        <p style="font-size:18px;margin-top:10px">Browser → <b>http://127.0.0.1:8000/docs</b><br>Click <b>POST /review → Try it out</b>, paste any review, hit Execute.</p>
-        <p class="muted" style="font-size:15px;margin-top:10px">This is the live demo moment — paste an angry review and watch it route to support with the exact signals shown.</p>
+        <h3>Production details that matter</h3>
+        <ul style="font-size:16px">
+          <li><b>Model loads once</b> at startup (lifespan hook), not per request — that's the 2 ms.</li>
+          <li><b>Typed contract</b> via Pydantic — malformed input rejected at the door.</li>
+          <li><b>/health endpoint</b> — load balancers need a heartbeat.</li>
+          <li><b>Latency returned</b> in every response — you cannot monitor what you don't measure.</li>
+        </ul>
+        <p class="muted" style="font-size:14.5px;margin-top:12px"><b>Demo it:</b><br><code style="font-family:monospace;font-size:12.5px">uvicorn service.app:app --port 8000</code><br>→ open <b>127.0.0.1:8000/docs</b> for a free interactive console.</p>
       </div>
     </div>
   </div>
-  <div class="foot"><span class="tag">SERVICE</span><span>13 / 16</span></div>
+  <div class="foot"><span class="tag">DEPLOYMENT</span><span>19 / 23</span></div>
 </section>
 
-<!-- 14 · ARCHITECTURE / FILE MAP -->
-<section class="slide" id="s14">
+<!-- ============ 20 · CODE EVIDENCE ============ -->
+<section class="slide" id="s20">
   <div class="wrap">
-    <span class="kicker">The Codebase</span>
-    <h2>How the files fit together</h2>
-    <div class="cols3">
-      <div class="card">
-        <h3>Brains (src/)</h3>
-        <p class="src" style="font-size:15px">
-          <b>data.py</b> — load IMDB<br>
-          <b>train.py</b> — TF-IDF + LogReg, MLflow<br>
-          <b>evaluate.py</b> — F1, recall, precision@k<br>
-          <b>compare_transformer.py</b> — DistilBERT<br>
-          <b>threshold.py</b> — profit sweep<br>
-          <b>urgency.py</b> — urgency + routing<br>
-          <b>predict.py</b> — score one review
-        </p>
-      </div>
-      <div class="card">
-        <h3>Serving &amp; proof</h3>
-        <p class="src" style="font-size:15px">
-          <b>service/app.py</b> — FastAPI live API<br>
-          <b>tests/</b> — 10 automated tests<br>
-          &nbsp;&nbsp;urgency · threshold · API<br>
-          <b>notebooks/ 01–04</b> — EDA, baseline, transformer, threshold (all executed)
-        </p>
-      </div>
-      <div class="card">
-        <h3>Project glue</h3>
-        <p class="src" style="font-size:15px">
-          <b>README.md</b> — the whole story<br>
-          <b>requirements.txt</b> — dependencies<br>
-          <b>.gitignore</b> — keeps data/models out of git<br>
-          <b>mlflow.db</b> — experiment tracking<br>
-          <b>models/</b> — the trained model file
-        </p>
-      </div>
+    <span class="kicker">Code Evidence · every claim has a file</span>
+    <h2>Where to look for proof</h2>
+    <div class="cols" style="gap:22px">
+      <table>
+        <tr><th>Requirement</th><th>File</th></tr>
+        <tr><td>Dataset loading</td><td><span class="pill mono" style="margin:0">src/data.py</span></td></tr>
+        <tr><td>Preprocessing + features</td><td><span class="pill mono" style="margin:0">src/train.py</span></td></tr>
+        <tr><td>Model training</td><td><span class="pill mono" style="margin:0">src/train.py</span></td></tr>
+        <tr><td>Evaluation metrics</td><td><span class="pill mono" style="margin:0">src/evaluate.py</span></td></tr>
+        <tr><td>MLflow tracking</td><td><span class="pill mono" style="margin:0">src/train.py</span></td></tr>
+        <tr><td>Experiment sweep</td><td><span class="pill mono" style="margin:0">src/experiments.py</span></td></tr>
+      </table>
+      <table>
+        <tr><th>Requirement</th><th>File</th></tr>
+        <tr><td>Transformer benchmark</td><td><span class="pill mono" style="margin:0">src/compare_transformer.py</span></td></tr>
+        <tr><td>Threshold optimization</td><td><span class="pill mono" style="margin:0">src/threshold.py</span></td></tr>
+        <tr><td>Urgency engine</td><td><span class="pill mono" style="margin:0">src/urgency.py</span></td></tr>
+        <tr><td>Prediction glue</td><td><span class="pill mono" style="margin:0">src/predict.py</span></td></tr>
+        <tr><td>REST API</td><td><span class="pill mono" style="margin:0">service/app.py</span></td></tr>
+        <tr><td>Automated tests (10)</td><td><span class="pill mono" style="margin:0">tests/</span></td></tr>
+      </table>
     </div>
-    <p class="lead" style="margin-top:20px">Data flows: <b>data → train → evaluate → threshold + urgency → predict → service</b>. Notebooks and tests prove each step.</p>
+    <div class="cols3" style="margin-top:20px">
+      <div class="card" style="text-align:center"><div class="stat good">10/10</div><div class="statlbl">pytest green</div></div>
+      <div class="card" style="text-align:center"><div class="stat">4</div><div class="statlbl">notebooks, all executed</div></div>
+      <div class="card" style="text-align:center"><div class="stat">1 cmd</div><div class="statlbl"><code style="font-family:monospace;font-size:12px">python -m src.train</code> rebuilds everything</div></div>
+    </div>
   </div>
-  <div class="foot"><span class="tag">ARCHITECTURE</span><span>14 / 16</span></div>
+  <div class="foot"><span class="tag">CODE EVIDENCE</span><span>20 / 23</span></div>
 </section>
 
-<!-- 15 · BUSINESS IMPACT -->
-<section class="slide" id="s15">
+<!-- ============ 21 · BUSINESS IMPACT ============ -->
+<section class="slide" id="s21">
   <div class="wrap">
-    <span class="kicker">Business Impact</span>
-    <h2>What is it worth?</h2>
-    <div class="cols" style="grid-template-columns:1fr 1fr;align-items:center">
+    <span class="kicker">Step 10 · Business Impact</span>
+    <h2>What the system is worth</h2>
+    <div class="cols" style="align-items:center">
       <div>
-        <div class="formula" style="font-size:20px">profit = saved·(r·ARPU·M) − contacted·C</div>
-        <table style="margin-top:14px">
+        <div class="formula" style="font-size:18px">profit = saved × (r·ARPU·M) − contacted × C</div>
+        <table style="margin-top:12px">
           <tr><td>Reviews / month</td><td class="n">300,000</td></tr>
           <tr><td>Negative share</td><td class="n">20%</td></tr>
-          <tr><td>Win-back value / save</td><td class="n">$60</td></tr>
+          <tr><td>At-risk share of those</td><td class="n">30%</td></tr>
+          <tr><td>Win-back rate</td><td class="n">15%</td></tr>
+          <tr><td>Value per save (ARPU × 6mo)</td><td class="n">$60</td></tr>
           <tr><td>Contact cost</td><td class="n">$1</td></tr>
-          <tr><td><b>Profit at optimal threshold</b></td><td class="n good">~$216k / mo</td></tr>
+          <tr class="win"><td><b>Profit at optimal threshold</b></td><td class="n good">~$216k / mo</td></tr>
         </table>
       </div>
-      <div class="card" style="text-align:center">
-        <div class="stat good">≈ $2.5M</div>
-        <div class="statlbl">estimated yearly effect at the profit-optimal threshold</div>
-        <hr style="border:none;border-top:1px solid var(--line);margin:16px 0">
-        <p class="muted" style="font-size:16px;margin:0">Break-even precision is only <b>11%</b>, our model runs at <b>87%</b> — an 8× safety margin makes this a <b>low-risk bet</b>.</p>
+      <div>
+        <div class="card" style="text-align:center">
+          <div class="stat good" style="font-size:56px">≈ $2.6M</div>
+          <div class="statlbl">estimated annual effect at the profit-optimal threshold</div>
+        </div>
+        <div class="card" style="margin-top:12px;border-left:3px solid var(--warn)">
+          <p style="font-size:15px;margin:0"><b>Read this honestly:</b> a model of the business, not a bank statement. It stands on assumed win-back and at-risk rates. The <b>defensible</b> claim: break-even precision is <b>11%</b>, we operate at <b>87%</b> — an 8× margin means the program profits even if the assumptions are badly wrong.</p>
+        </div>
       </div>
     </div>
   </div>
-  <div class="foot"><span class="tag">BUSINESS IMPACT</span><span>15 / 16</span></div>
+  <div class="foot"><span class="tag">BUSINESS IMPACT</span><span>21 / 23</span></div>
 </section>
 
-<!-- 16 · ROADMAP + THANKS -->
-<section class="slide" id="s16">
+<!-- ============ 22 · Q&A PREEMPT ============ -->
+<section class="slide" id="s22">
+  <div class="wrap">
+    <span class="kicker">Answered before you ask</span>
+    <h2>The seven questions</h2>
+    <div class="cols" style="gap:20px">
+      <div>
+        <div class="card" style="margin-bottom:10px;padding:13px 16px"><h3 style="font-size:16px">What problem?</h3><p style="font-size:14.5px;margin:0">Detect negative <b>and urgent</b> reviews in real time so support acts before the customer churns.</p></div>
+        <div class="card" style="margin-bottom:10px;padding:13px 16px"><h3 style="font-size:16px">Why ML?</h3><p style="font-size:14.5px;margin:0">300k reviews/month can't be read by hand; keyword rules break on negation and sarcasm.</p></div>
+        <div class="card" style="margin-bottom:10px;padding:13px 16px"><h3 style="font-size:16px">Why this model?</h3><p style="font-size:14.5px;margin:0">TF-IDF + LogReg balances accuracy (F1 0.90), latency (2 ms), cost (CPU) and <b>explainability</b>.</p></div>
+        <div class="card" style="padding:13px 16px"><h3 style="font-size:16px">Why compare DistilBERT?</h3><p style="font-size:14.5px;margin:0">To test whether a transformer earns its cost. It didn't — tie at ~100× the price.</p></div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:10px;padding:13px 16px"><h3 style="font-size:16px">What does MLflow do?</h3><p style="font-size:14.5px;margin:0">Tracks params, metrics, artifacts and run IDs across <b>9 runs</b> in 3 experiments → reproducible, evidence-based selection.</p></div>
+        <div class="card" style="margin-bottom:10px;padding:13px 16px"><h3 style="font-size:16px">How does it work end to end?</h3><p style="font-size:14.5px;margin:0">Data → preprocess → train → evaluate → MLflow → persist → FastAPI → two scorers → business routing.</p></div>
+        <div class="card" style="padding:13px 16px;border-left:3px solid var(--pos)"><h3 style="font-size:16px">What makes it production-oriented?</h3><p style="font-size:14.5px;margin:0">Automated tests, experiment tracking, a deployed API, <b>business-driven</b> thresholds, a reproducible pipeline, and a documented retraining plan.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="tag">Q&amp;A</span><span>22 / 23</span></div>
+</section>
+
+<!-- ============ 23 · ROADMAP ============ -->
+<section class="slide" id="s23">
   <div class="wrap">
     <span class="kicker">Wrap-up</span>
     <h2>Roadmap &amp; takeaways</h2>
     <div class="cols">
       <div>
-        <h3>Roadmap</h3>
-        <ul>
-          <li><b>Done:</b> baseline model, transformer comparison, live API, urgency routing, profit-optimal threshold.</li>
-          <li><b>Next:</b> retrain monthly on the site's own reviews.</li>
-          <li><b>Then:</b> watch for drift; re-tune threshold as costs change.</li>
-          <li><b>Later:</b> mine <b>why</b> customers are unhappy, not just that they are.</li>
+        <h3>Shipped</h3>
+        <ul style="font-size:16px">
+          <li>Baseline model, F1 0.90 — gate cleared</li>
+          <li>Transformer benchmark + 5-run MLflow sweep</li>
+          <li>Urgency engine + business router</li>
+          <li>Profit-optimal threshold</li>
+          <li>Live API, 10 tests, 4 notebooks</li>
+        </ul>
+        <h3 style="margin-top:14px">Next</h3>
+        <ul style="font-size:16px">
+          <li><b>Retrain monthly</b> on our own reviews (IMDB is a stand-in)</li>
+          <li><b>Monitor drift</b> — alert when score distributions shift</li>
+          <li><b>Re-run the threshold sweep</b> as costs change</li>
+          <li><b>Topic mining</b> — <i>why</i> customers are unhappy, not just that they are</li>
         </ul>
       </div>
       <div>
-        <h3>Takeaways</h3>
-        <ul>
-          <li>Simple model <span class="good">F1 = 0.90</span>, beats the 0.85 gate.</li>
-          <li>Chose the cheap, explainable model over the fancy one — on purpose.</li>
-          <li>Both teacher feedbacks are <b>working code</b>, not slides.</li>
-          <li>Fully reproducible &amp; on GitHub.</li>
-        </ul>
+        <div class="card" style="border-left:3px solid var(--accent)">
+          <h3>What I'd defend in one line</h3>
+          <p style="font-size:16px;margin:0">Not "I trained a classifier" — but <b>"I built a system that turns text into a business decision, measured whether the expensive option was worth it, and let money choose the threshold."</b></p>
+        </div>
+        <div class="cols" style="grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+          <div class="card" style="text-align:center"><div class="stat good">0.900</div><div class="statlbl">F1 negative</div></div>
+          <div class="card" style="text-align:center"><div class="stat">~2ms</div><div class="statlbl">per decision</div></div>
+          <div class="card" style="text-align:center"><div class="stat">9</div><div class="statlbl">tracked runs</div></div>
+          <div class="card" style="text-align:center"><div class="stat good">10/10</div><div class="statlbl">tests green</div></div>
+        </div>
       </div>
     </div>
-    <h1 style="margin-top:26px;font-size:38px">Thank you — questions?</h1>
-    <p class="muted">Dipshant · Industrial Machine Learning · Harbour.Space 2026 · <span style="font-family:monospace">github.com/Dishantpaudel/review-radar</span></p>
+    <h1 style="margin-top:24px;font-size:34px">Thank you — questions?</h1>
+    <p class="muted" style="font-size:15px">Dipshant · Industrial Machine Learning · Harbour.Space 2026 · <span style="font-family:monospace">github.com/Dishantpaudel/review-radar</span></p>
   </div>
-  <div class="foot"><span class="tag">PITCH</span><span>16 / 16</span></div>
+  <div class="foot"><span class="tag">PITCH</span><span>23 / 23</span></div>
 </section>
 
+<script id="demoModel" type="application/json">{"w":["000","10","100","11","12","13","14","15","17","1950","1970","1980","20","2000","2001","2006","25","30","40","50","60","60s","70","70s","80","80s","90","abandoned","ability","able","about","above","absolute","absolutely","absurd","abuse","academy","accent","accents","accept","accident","accidentally","according","account","accurate","achieve","across","act","acted","acting","action","actions","actor","actors","actress","actresses","acts","actual","actually","adam","adaptation","add","added","adding","addition","adds","admit","adult","adults","adventure","adventures","advice","affair","afraid","africa","african","after","afternoon","again","against","age","aged","agent","ages","ago","agree","ahead","ain","air","aka","al","alan","alas","albeit","albert","alex","alice","alien","aliens","alive","all","allen","allow","allowed","allows","almost","alone","along","already","alright","also","although","always","am","amateur","amateurish","amazed","amazing","amazingly","america","american","americans","among","amongst","amount","amusing","an","ancient","and","anderson","andy","angel","angels","anger","angle","angles","angry","animal","animals","animated","animation","anime","ann","anna","anne","annoying","another","answer","answers","anthony","anti","any","anybody","anymore","anyone","anything","anyway","anywhere","apart","apartment","apparent","apparently","appeal","appealing","appear","appearance","appeared","appears","appreciate","appreciated","approach","appropriate","are","area","aren","arms","army","around","arrives","art","arthur","artist","artistic","artists","arts","as","ashamed","asian","aside","ask","asked","asking","asks","asleep","aspect","aspects","ass","assume","at","atmosphere","atrocious","attack","attacked","attacks","attempt","attempting","attempts","attention","attitude","attractive","audience","audiences","aunt","australian","authentic","author","available","average","avoid","award","awards","aware","away","awesome","awful","awkward","baby","back","background","bad","badly","balance","ball","band","bank","bar","barbara","barely","base","baseball","based","basic","basically","basis","bat","batman","battle","bbc","be","beach","bear","beast","beat","beautiful","beautifully","beauty","became","because","become","becomes","becoming","bed","been","before","began","begin","beginning","begins","behavior","behind","being","belief","believable","believe","believed","believes","beloved","below","ben","besides","best","bet","better","bettie","between","beyond","big","bigger","biggest","bill","billy","birth","bit","bits","bitter","bizarre","black","blah","blair","blame","bland","blind","blockbuster","blonde","blood","bloody","blow","blown","blue","board","boat","bob","bodies","body","bollywood","bomb","bond","book","books","bore","bored","boring","born","boss","both","bother","bothered","bottom","bought","bound","bourne","box","boy","boyfriend","boys","br","brad","brain","branagh","brando","brave","break","breaking","breaks","breath","breathtaking","brian","bridge","brief","bright","brilliant","brilliantly","bring","bringing","brings","british","broadway","broken","brooks","brother","brothers","brought","brown","bruce","brutal","buck","buddy","budget","build","building","built","bunch","burns","burt","bus","business","busy","but","buy","buying","by","cabin","cable","cage","caine","california","call","called","calling","calls","came","cameo","camera","camp","campy","can","canadian","candy","cannot","cant","capable","captain","capture","captured","captures","car","care","career","cares","caring","carpenter","carried","carries","carry","carrying","cars","cartoon","cartoons","case","cases","cash","cast","casting","castle","cat","catch","category","caught","cause","caused","causes","cell","center","central","century","certain","certainly","cgi","challenge","chan","chance","change","changed","changes","changing","channel","character","characters","charge","charles","charlie","charm","charming","chase","che","cheap","check","cheese","cheesy","chemistry","chick","chief","child","childhood","children","chilling","china","chinese","choice","choices","choose","chose","chosen","chris","christ","christian","christmas","christopher","church","cinderella","cinema","cinematic","cinematography","circumstances","city","claim","claims","claire","clark","class","classic","classics","clean","clear","clearly","clever","clich\u00e9","clich\u00e9d","clich\u00e9s","climax","clips","close","closer","closing","clothes","club","clue","co","code","cold","collection","college","color","colors","columbo","com","combination","combined","come","comedian","comedic","comedies","comedy","comes","comic","comical","coming","comment","commentary","comments","commercial","committed","common","community","company","compare","compared","comparison","compelling","complete","completely","complex","complicated","computer","con","concept","concerned","conclusion","conflict","confused","confusing","confusion","connection","consider","considered","considering","constant","constantly","contains","contemporary","content","context","continue","continues","continuity","contrast","contrived","control","conversation","convey","convince","convinced","convincing","cook","cool","cooper","cop","cops","copy","core","corny","correct","cost","costs","costume","costumes","could","couldn","count","country","couple","course","court","cover","covered","cowboy","crafted","crap","crappy","crash","crazy","create","created","creates","creating","creative","creature","creatures","credit","credits","creepy","crew","crime","criminal","criminals","critical","criticism","critics","cross","crowd","crude","cruel","cry","crying","cult","cultural","culture","curious","current","cut","cute","cuts","cutting","dad","daily","damn","dan","dance","dancing","danger","dangerous","daniel","danny","dark","darkness","date","dated","daughter","daughters","david","davis","day","days","de","dead","deadly","deal","dealing","deals","dean","death","deaths","debut","decade","decades","decent","decide","decided","decides","decision","deep","deeper","deeply","definitely","degree","delightful","deliver","delivered","delivers","delivery","demon","demons","dennis","department","depicted","depiction","depressing","depth","describe","described","description","desert","deserve","deserved","deserves","design","designed","desire","desperate","desperately","despite","destroy","destroyed","detail","details","detective","determined","develop","developed","development","device","devil","dialog","dialogue","dick","did","didn","die","died","dies","difference","different","difficult","dimensional","direct","directed","directing","direction","directly","director","directors","dirty","disappointed","disappointing","disappointment","disaster","disbelief","discover","discovered","discovers","disgusting","disney","display","disturbing","do","doctor","documentary","does","doesn","dog","dogs","doing","dollar","dollars","don","donald","done","door","double","doubt","douglas","down","downright","dozen","dr","drag","dragon","drama","dramatic","draw","drawn","dreadful","dream","dreams","dress","dressed","drew","drinking","drive","driven","driver","driving","drop","drug","drugs","drunk","dry","dubbed","dude","due","dull","dumb","during","dvd","dying","each","earlier","early","earth","easily","east","easy","eat","eating","ed","eddie","edge","edited","editing","edward","effect","effective","effectively","effects","effort","efforts","eight","either","element","elements","elizabeth","else","em","embarrassed","embarrassing","emma","emotion","emotional","emotionally","emotions","empty","encounter","end","ended","ending","endless","ends","enemy","energy","engaging","england","english","enjoy","enjoyable","enjoyed","enjoying","enough","enter","entertain","entertained","entertaining","entertainment","entire","entirely","environment","epic","episode","episodes","equally","era","eric","erotic","escape","escapes","especially","essential","essentially","established","etc","europe","european","even","evening","event","events","eventually","ever","every","everybody","everyday","everyone","everything","everywhere","evidence","evil","ex","exact","exactly","example","examples","excellent","except","exception","excited","excitement","exciting","excuse","executed","execution","exist","existence","existent","exists","expect","expectations","expected","expecting","experience","experienced","experiences","experiment","expert","explain","explained","explains","explanation","exploitation","express","expression","extent","extra","extraordinary","extras","extreme","extremely","eye","eyes","fabulous","face","faced","faces","facial","fact","factor","facts","fail","failed","fails","failure","fair","fairly","fairy","faith","faithful","fake","fall","fallen","falling","falls","false","fame","familiar","families","family","famous","fan","fans","fantastic","fantasy","far","fare","fascinating","fashion","fast","fat","fate","father","fault","favor","favorite","favorites","favourite","fear","feature","featured","features","featuring","feel","feeling","feelings","feels","feet","fell","fellow","felt","female","festival","few","fi","fiction","fictional","field","fight","fighting","fights","figure","figured","figures","fill","filled","film","filmed","filming","filmmaker","filmmakers","films","final","finale","finally","find","finding","finds","fine","finest","finish","finished","fire","first","fish","fit","fits","five","flashback","flashbacks","flat","flaws","flesh","flick","flicks","flight","floor","flow","fly","flying","focus","focused","focuses","folks","follow","followed","following","follows","food","fool","foot","footage","football","for","force","forced","forces","ford","foreign","forest","forever","forget","forgettable","forgot","forgotten","form","format","former","formula","forth","fortunately","forward","foster","found","four","fourth","fox","frame","france","frank","frankly","fred","freddy","free","freedom","freeman","french","fresh","friday","friend","friendly","friends","friendship","frightening","from","front","fu","full","fully","fun","funnier","funniest","funny","further","future","gags","game","games","gang","gangster","garbage","gary","gas","gave","gay","gem","gene","general","generally","generation","genius","genre","genuine","genuinely","george","german","germany","get","gets","getting","ghost","ghosts","giant","girl","girlfriend","girls","give","given","gives","giving","glad","glass","go","god","goes","going","gold","golden","gone","gonna","good","goofy","gordon","gore","gorgeous","gory","got","gotten","government","grace","grade","grand","grant","granted","graphic","graphics","gratuitous","grave","great","greater","greatest","green","grew","grey","grim","gritty","gross","ground","group","grow","growing","grown","gruesome","guard","guess","guilty","gun","guns","guy","guys","ha","had","hadn","hair","half","halfway","hall","halloween","hand","handed","handle","handled","hands","handsome","hanging","happen","happened","happening","happens","happiness","happy","hard","hardly","hardy","harris","harry","harsh","has","hasn","hat","hate","hated","haunted","haunting","have","haven","having","he","head","headed","heads","hear","heard","hearing","heart","hearted","heaven","heavily","heavy","heck","held","hell","help","helped","helping","helps","henry","her","here","hero","heroes","heroine","herself","hey","hidden","hide","high","higher","highlight","highly","hilarious","hill","him","himself","hip","hired","his","historical","history","hit","hitchcock","hitler","hits","hoffman","hold","holding","holds","hole","holes","hollywood","holmes","home","honest","honestly","hong","honor","hood","hope","hopefully","hopes","hoping","horrible","horribly","horrific","horror","horse","hospital","hot","hotel","hour","hours","house","how","howard","however","huge","human","humanity","humans","humor","humorous","humour","hunt","hunter","hurt","husband","ice","idea","ideas","identity","idiot","if","ignore","ii","ill","image","imagery","images","imagination","imagine","imdb","immediately","impact","important","impossible","impressed","impression","impressive","in","include","included","includes","including","incredible","incredibly","indeed","independent","india","indian","indie","individual","industry","inept","influence","information","initial","initially","inner","innocent","insane","inside","insight","inspector","inspiration","inspired","instance","instead","insult","intellectual","intelligence","intelligent","intended","intense","intensity","intentions","interest","interested","interesting","international","interpretation","interview","interviews","into","intriguing","introduced","introduction","invisible","involved","involves","involving","irish","ironic","irritating","is","island","isn","issue","issues","it","italian","its","itself","jack","jackie","jackson","jail","jake","james","jane","japan","japanese","jason","jay","jean","jeff","jennifer","jerry","jessica","jesus","jewish","jim","jimmy","joan","job","jobs","joe","john","johnny","johnson","join","joke","jokes","jon","jones","joseph","journey","joy","jr","judge","julia","julie","jump","jumps","jungle","junk","just","justice","kate","keaton","keep","keeping","keeps","kelly","kept","kevin","key","kick","kid","kids","kill","killed","killer","killers","killing","kills","kim","kind","kinda","kinds","king","kiss","knew","know","knowing","knowledge","known","knows","kong","kung","la","lack","lacking","lacks","ladies","lady","laid","lake","lame","land","lane","language","large","largely","larry","last","late","later","latest","latter","laugh","laughable","laughed","laughing","laughs","laughter","laura","law","lawyer","lazy","lead","leader","leading","leads","league","learn","learned","learning","learns","least","leave","leaves","leaving","led","lee","left","legend","legendary","legs","length","lesbian","leslie","less","lesser","lesson","let","lets","level","levels","lewis","lie","lies","life","lifetime","light","lighting","lights","likable","like","liked","likely","likes","limited","lincoln","line","liners","lines","lion","lisa","list","listen","listening","literally","little","live","lived","lives","living","ll","local","location","locations","locked","logic","london","lonely","long","longer","look","looked","looking","looks","loose","lord","lose","loses","losing","loss","lost","lot","lots","loud","louis","lousy","love","loved","lovely","lover","lovers","loves","loving","low","lower","luck","lucky","lucy","ludicrous","lugosi","luke","lynch","machine","mad","made","madness","magic","magical","magnificent","main","mainly","mainstream","major","majority","make","maker","makers","makes","makeup","making","male","man","manage","managed","manager","manages","manner","mansion","many","maria","marie","mark","market","marriage","married","marry","martial","martin","marvelous","mary","mask","mass","massive","master","masterpiece","match","material","matrix","matt","matter","matters","matthau","mature","max","may","maybe","me","mean","meaning","means","meant","meanwhile","media","mediocre","meet","meeting","meets","melodrama","member","members","memorable","memories","memory","men","mental","mentally","mention","mentioned","mere","merely","mess","message","met","metal","mexican","mexico","mgm","michael","michelle","mid","middle","midnight","might","mike","mildly","miles","military","miller","million","mind","minded","minds","mine","mini","minor","minute","minutes","mirror","miss","missed","missing","mission","mistake","mistakes","mix","mixed","mob","model","modern","mom","moment","moments","money","monster","monsters","months","mood","moon","moore","moral","more","morgan","morning","most","mostly","mother","motion","mountain","mouse","mouth","move","moved","movement","moves","movie","movies","moving","mr","mrs","ms","much","multiple","murder","murdered","murderer","murders","murphy","music","musical","musicals","must","my","myself","mysterious","mystery","naive","naked","name","named","names","nancy","narration","narrative","nasty","nation","national","native","natural","naturally","nature","navy","nazi","near","nearly","necessarily","necessary","ned","need","needed","needless","needs","negative","neither","network","never","nevertheless","new","news","next","nice","nicely","nick","night","nightmare","nine","no","nobody","noir","nominated","non","none","nonetheless","nonsense","nor","normal","normally","north","not","notable","notch","note","nothing","notice","noticed","notorious","novel","novels","now","nowadays","nowhere","nude","nudity","number","numbers","numerous","obnoxious","obsessed","obsession","obvious","obviously","occasional","occasionally","odd","oddly","of","off","offensive","offer","offered","offers","office","officer","often","oh","ok","okay","old","older","oliver","on","once","one","ones","only","onto","open","opening","opens","opera","opinion","opportunity","opposite","or","order","ordinary","original","originality","originally","oscar","other","others","otherwise","our","out","outside","outstanding","over","overall","overly","own","owner","pace","paced","pacing","pacino","packed","page","paid","pain","painful","painfully","paint","pair","paper","par","parents","paris","park","parker","parody","part","particular","particularly","partner","parts","party","pass","passed","passing","passion","past","path","pathetic","patient","patrick","paul","pay","paying","peace","people","perfect","perfectly","performance","performances","performed","perhaps","period","person","personal","personalities","personality","personally","perspective","pet","peter","philip","phone","photography","physical","pick","picked","picks","picture","pictures","piece","pieces","pile","pilot","pitt","pity","place","placed","places","plain","plan","plane","planet","plans","play","played","player","players","playing","plays","pleasant","please","pleasure","plenty","plot","plots","plus","point","pointless","points","police","political","politics","poor","poorly","pop","popular","porn","portray","portrayal","portrayed","portraying","portrays","position","positive","possible","possibly","post","potential","powell","power","powerful","powers","practically","praise","pre","predictable","prefer","pregnant","premise","prepared","presence","present","presentation","presented","presents","president","pretentious","pretty","previous","previously","price","priest","prime","prince","princess","print","prior","prison","private","probably","problem","problems","process","produce","produced","producer","producers","product","production","productions","professional","professor","program","project","promise","promising","propaganda","proper","properly","protagonist","protect","proud","prove","proved","proves","provide","provided","provides","provoking","psycho","psychological","public","pull","pulled","pulls","punch","pure","purely","purpose","put","puts","putting","qualities","quality","queen","quest","question","questions","quick","quickly","quiet","quirky","quite","race","rachel","racist","radio","rain","raise","raised","ran","random","range","rape","rare","rarely","rate","rated","rather","rating","ratings","raw","ray","re","reach","reaction","read","reading","ready","real","realism","realistic","reality","realize","realized","realizes","really","reason","reasons","recall","received","recent","recently","recognize","recommend","recommended","record","red","redeeming","reed","reference","references","refreshing","regard","regarding","regret","regular","relate","related","relationship","relationships","relatively","release","released","relief","religion","religious","remain","remains","remake","remarkable","remember","remembered","remind","reminded","reminds","reminiscent","remote","remotely","rent","rental","rented","renting","repeated","replaced","reporter","reputation","required","rescue","research","respect","responsible","rest","result","results","retarded","return","returns","reveal","revealed","reveals","revenge","review","reviewer","reviewers","reviews","revolution","rich","richard","ride","ridiculous","right","rights","ring","rings","rip","rise","risk","rival","river","road","rob","robert","robin","robot","rock","roger","rogers","role","roles","roll","rolling","romance","romantic","ron","room","rose","rough","round","routine","roy","rubbish","ruin","ruined","rule","rules","run","running","runs","russell","russian","ryan","sad","sadly","safe","said","sake","sam","same","san","sandler","santa","sarah","sat","satire","satisfying","saturday","save","saved","saving","saw","say","saying","says","scale","scare","scared","scares","scary","scenario","scene","scenery","scenes","school","sci","science","scientist","score","scott","scream","screaming","screen","screening","screenplay","screenwriter","script","sea","sean","search","season","seasons","seat","second","seconds","secret","section","security","see","seeing","seek","seeking","seem","seemed","seemingly","seems","seen","sees","segment","self","sell","semi","send","sense","sensitive","sent","sequel","sequels","sequence","sequences","serial","series","serious","seriously","serve","served","serves","service","set","sets","setting","settings","seven","several","sex","sexual","sexy","shadow","shakespeare","shallow","shame","shape","share","sharp","she","sheer","sheriff","ship","shock","shocked","shocking","shoot","shooting","shop","short","shot","shots","should","shouldn","show","showed","shower","showing","shown","shows","shut","sick","side","sides","sidney","sight","sign","significant","silent","silly","similar","simon","simple","simply","sin","sinatra","since","sing","singer","singing","single","sinister","sir","sister","sisters","sit","sitcom","site","sitting","situation","situations","six","skill","skills","skin","skip","sky","slapstick","slasher","sleazy","sleep","sleeping","slightly","slow","slowly","small","smart","smile","smith","so","soap","social","society","soft","sold","soldier","soldiers","solid","some","somebody","somehow","someone","something","sometimes","somewhat","somewhere","son","song","songs","soon","sorry","sort","sorts","soul","sound","sounded","sounds","soundtrack","source","south","southern","space","spanish","speak","speaking","speaks","special","spectacular","speech","speed","spend","spends","spent","spirit","spite","spoil","spoiler","spoilers","spoken","spoof","sports","spot","spy","stage","stand","standard","standards","standing","stands","stanley","stanwyck","star","starred","starring","stars","start","started","starting","starts","state","statement","states","station","status","stay","stayed","stays","steal","steals","step","stephen","stereotypes","stereotypical","steve","steven","stewart","stick","still","stock","stolen","stomach","stone","stop","stopped","stops","store","stories","story","storyline","storytelling","straight","strange","strangely","street","streets","strength","strong","strongly","structure","struggle","struggling","stuck","student","students","studio","studios","study","stuff","stunning","stupid","stupidity","style","stylish","sub","subject","substance","subtitles","subtle","succeeds","success","successful","successfully","such","suck","sucked","sucks","sudden","suddenly","suffer","suffering","suffers","suggest","suicide","suit","sullivan","summary","summer","sun","sunday","super","superb","superior","superman","supernatural","support","supporting","suppose","supposed","supposedly","sure","surely","surface","surprise","surprised","surprises","surprising","surprisingly","surreal","survive","susan","suspect","suspense","suspenseful","sutherland","sweet","sword","sympathetic","sympathy","system","table","take","taken","takes","taking","tale","talent","talented","talents","tales","talk","talking","talks","tape","target","tarzan","task","taste","taylor","teacher","team","tears","technical","technically","technology","ted","tedious","teen","teenage","teenager","teenagers","teens","teeth","television","tell","telling","tells","ten","tend","tension","term","terms","terrible","terribly","terrific","terror","test","texas","text","than","thank","thankfully","thanks","that","thats","the","theater","theaters","theatre","theatrical","their","them","theme","themes","themselves","then","theory","there","therefore","these","they","thief","thin","thing","things","think","thinking","thinks","third","this","thomas","thoroughly","those","though","thought","thoughts","three","thriller","through","throughout","throw","throwing","thrown","throws","thus","tight","till","tim","time","times","timing","tiny","tired","titanic","title","titles","to","today","together","told","tom","tone","tony","too","took","top","topic","torture","total","totally","touch","touched","touches","touching","tough","toward","towards","town","toy","track","tracy","tradition","traditional","tragedy","tragic","trailer","train","training","trapped","trash","travel","treasure","treat","treated","treatment","tree","trek","trick","tried","tries","trilogy","trip","trouble","truck","true","truly","trust","truth","try","trying","turkey","turn","turned","turning","turns","tv","twenty","twice","twist","twisted","twists","two","type","types","typical","ugly","uk","ultimate","ultimately","un","unable","unbelievable","uncle","unconvincing","under","underground","underrated","understand","understanding","understood","unexpected","unfortunate","unfortunately","unfunny","uninteresting","unique","united","universal","universe","unknown","unless","unlike","unlikely","unnecessary","unrealistic","until","unusual","up","upon","upper","ups","urban","us","usa","use","used","uses","using","usual","usually","utter","utterly","vacation","value","values","vampire","vampires","van","variety","various","ve","vehicle","version","versions","very","veteran","vhs","via","victim","victims","victor","victoria","video","vietnam","view","viewed","viewer","viewers","viewing","views","village","villain","villains","violence","violent","virtually","vision","visit","visual","visually","visuals","voice","voices","von","vote","vs","wait","waiting","walk","walked","walking","walks","wall","walter","wanna","want","wanted","wanting","wants","war","warm","warned","warner","warning","wars","was","washington","wasn","waste","wasted","watch","watchable","watched","watching","water","wave","way","wayne","ways","we","weak","weapons","wear","wearing","wears","wedding","week","weekend","weeks","weird","welcome","well","welles","went","were","weren","werewolf","west","western","westerns","what","whatever","whatsoever","when","whenever","where","whether","which","while","whilst","white","who","whoever","whole","whom","whose","why","wide","wife","wild","will","william","williams","willing","wilson","win","wind","window","wing","winner","winning","wins","wise","wish","wit","witch","with","within","without","witness","witty","woman","women","won","wonder","wonderful","wonderfully","wondering","wood","wooden","woods","woody","word","words","work","worked","workers","working","works","world","worse","worst","worth","worthwhile","worthy","would","wouldn","wow","write","writer","writers","writing","written","wrong","wrote","wwii","yeah","year","years","yes","yet","york","you","young","younger","your","yourself","youth","zero","zombie","zombies"],"i":[5.72851,2.99868,5.12773,5.49905,5.41294,5.66284,5.86918,4.94252,5.97918,6.03292,6.11604,6.04527,4.66208,6.10939,6.12272,6.17084,5.88492,4.76364,5.34285,5.06056,5.52087,6.06408,5.17864,5.6544,4.90807,5.61728,4.95915,5.94489,5.09599,4.08438,1.8683,4.46738,5.31553,3.89394,5.48476,5.97338,5.57371,5.06056,5.90632,5.52087,5.45335,5.86398,5.46719,5.97918,5.55072,6.00271,4.33208,4.15032,4.66364,2.53921,3.38297,5.48122,3.53885,2.93189,4.16538,5.30956,5.20242,4.56423,2.98228,5.8744,5.22404,4.46738,5.08167,6.02073,5.31254,5.35835,4.74824,5.03763,5.32455,5.06989,5.8744,5.62541,5.36777,5.35835,6.10279,5.79879,2.46399,5.92266,3.03965,3.98384,4.24629,5.69733,5.42289,5.67993,4.24732,4.82405,5.16567,6.00868,4.78808,5.97338,5.56215,5.62134,6.06408,6.07682,6.02073,6.23632,6.17084,5.67135,6.06408,5.09839,1.64745,5.68859,5.43294,5.38367,5.65021,3.24097,4.26287,3.73773,4.00058,5.95619,2.35329,3.43365,3.22975,3.38949,5.85881,5.75139,5.93371,4.11366,5.99087,4.7018,3.70969,5.42623,4.54465,6.08325,4.98249,4.95497,1.71658,5.8184,1.03401,6.09623,5.99087,5.96189,6.42619,5.95619,6.08972,5.8384,5.42289,5.5099,5.41956,5.19443,4.80951,6.25147,6.08972,6.20669,6.00868,4.34448,2.93244,5.37093,6.04527,5.72399,5.13271,2.4659,5.45679,5.37728,3.37176,3.27969,4.17299,5.4465,4.74486,5.55833,5.43294,4.41129,5.09119,5.7607,4.76364,5.07694,5.26874,4.4751,4.94873,5.88492,5.31853,5.74677,1.58667,5.46024,4.41129,6.07682,5.26588,3.12498,6.07682,4.22998,5.82337,5.49188,5.41956,6.05777,5.69733,1.43892,6.10279,5.90632,5.02635,4.73643,5.49905,5.71057,5.40636,5.8184,5.07694,5.18913,5.60922,5.75139,1.65836,4.64204,5.85881,5.23503,6.12946,6.15686,4.27443,6.05777,4.83696,4.39565,5.72399,5.31853,3.63002,5.08167,6.21402,6.12272,6.08972,5.63773,5.22677,4.64509,4.535,5.20509,5.79879,5.53196,3.33639,5.08642,3.85011,5.65021,4.87092,2.84723,4.78103,2.44312,4.73979,6.07682,5.69295,5.23503,5.98501,5.31254,5.87965,4.99544,6.08325,6.19942,3.94965,4.97394,4.38852,6.00271,6.48228,6.03907,4.94252,6.20669,1.56984,6.08325,5.79395,6.31449,5.38047,3.62669,5.10081,4.77928,4.66677,2.38617,3.90411,4.0283,5.30363,5.26304,2.3234,2.93659,5.43294,4.67305,3.95578,4.55859,5.66284,4.08613,2.6025,5.92266,4.62238,3.42547,5.8184,5.77956,5.97918,5.53568,5.19975,5.14022,2.62927,5.72399,2.68722,7.66094,3.20913,4.42103,3.18431,5.62541,4.93023,5.06056,5.54317,6.00271,3.27657,5.50627,6.04527,5.01742,3.82283,6.74464,6.28248,5.49905,5.57371,5.77008,5.92266,5.7195,4.34561,5.49546,5.87965,5.93371,5.23779,5.66284,5.8384,5.77008,5.82835,4.43335,6.49194,5.84347,5.70172,3.85775,5.14526,5.93929,4.90211,3.80681,5.30067,5.3741,3.21242,5.16825,5.92817,5.12278,5.08167,6.03292,7.23485,4.77928,4.03493,5.29773,4.94665,1.53332,6.18503,5.13771,6.68402,6.76996,5.88492,4.80052,5.72399,5.6295,5.96189,6.0268,5.55072,6.28248,5.19443,5.58149,4.19033,5.65861,4.42471,5.7607,4.73979,4.6179,5.96762,5.63773,6.53155,4.42594,5.02635,4.58276,5.82835,5.67993,5.48476,6.22883,5.8384,3.83297,5.41956,5.27447,5.7376,4.53089,6.37308,6.33088,6.25914,4.79339,6.10939,1.32954,4.56423,5.93371,1.75745,6.35599,5.58541,6.05777,6.53155,5.97918,4.36626,3.96971,5.96189,5.62134,3.78843,5.63361,3.8357,5.28894,6.01468,1.95476,6.00868,5.74677,4.24116,5.96189,5.7195,5.67563,5.49905,5.6295,5.80855,4.32206,4.0283,4.34789,5.7195,6.03292,6.62686,6.07043,6.0515,5.39333,6.04527,5.75139,5.21859,6.06408,3.93073,6.07043,5.73304,3.04458,4.78631,5.90092,5.14779,5.06056,5.80855,4.87863,4.95915,5.71057,6.04527,6.27464,5.77481,5.22952,4.98034,4.57274,3.95271,5.58934,6.08325,6.51155,4.24526,4.35588,5.0399,5.24894,5.91718,5.17603,2.64097,2.59164,6.0268,5.33061,5.73304,5.20242,5.03536,5.26874,7.46311,4.45337,4.63899,6.17791,4.81131,5.02635,5.79879,5.86918,4.21492,5.37728,4.12088,6.07682,6.17791,5.7376,4.92211,6.02073,5.7607,5.86918,5.74677,5.48476,6.22883,5.60922,5.30659,5.30956,5.5099,6.83621,4.03826,5.15286,4.28079,5.76538,4.3377,5.82337,5.85881,6.29039,6.14994,4.5066,3.77744,5.71503,5.70172,4.54188,4.42471,4.9201,5.38047,6.00271,5.53196,5.11296,6.21402,4.05425,5.8744,5.97338,5.39657,5.32455,5.80855,4.84628,5.95619,4.92414,5.32758,5.11786,5.27735,5.8744,7.06623,5.79395,5.71503,5.85881,3.18644,6.16383,5.4465,5.20242,3.36238,3.4465,4.5516,6.0268,4.22897,4.72974,5.48832,4.57845,5.71503,5.91174,4.9508,5.58934,4.99544,5.38367,4.87863,5.63773,5.2602,4.25247,3.71996,5.15796,6.00868,5.24894,6.27464,4.95706,5.58149,4.96969,5.69733,5.24335,5.30067,6.09623,5.65861,4.93227,5.01299,4.87284,5.51354,5.15541,5.15541,5.84856,5.30363,5.65861,5.42289,5.59328,5.81347,5.79395,5.75603,4.9998,5.98501,6.03907,5.89556,5.77956,4.91007,6.27464,4.40284,6.3645,5.01299,5.66709,4.90608,5.65861,5.67993,5.75603,5.7607,5.67135,5.80366,5.14779,2.43183,3.90484,5.40309,4.46994,3.82283,3.43684,6.07682,4.98679,5.80855,6.25914,6.03292,4.34448,5.77481,5.96762,4.76537,4.80951,4.9201,5.65861,5.49546,5.33671,5.55452,5.94489,4.92414,4.68892,4.84628,4.95706,4.71485,5.48476,6.16383,6.02073,6.07043,5.29773,5.40964,5.82337,5.99677,6.0515,5.26874,5.93371,5.11296,6.01468,5.13022,5.63361,5.62134,4.33657,4.8767,5.58934,5.82835,5.24614,6.08325,5.31853,6.13624,4.90013,5.12032,5.82337,5.55072,6.02073,5.73304,4.0914,6.00271,5.12526,5.60521,4.37791,6.20669,4.51195,5.78913,3.40887,4.06877,4.96969,3.83501,5.93371,4.61493,5.59328,5.63361,6.17084,3.79823,5.87965,5.63773,5.66284,5.99087,4.19033,5.01299,4.62388,4.91007,5.71503,4.70668,6.03907,5.40964,3.8732,5.85367,5.58934,5.38047,5.66709,5.31853,5.96189,6.25914,6.38174,6.14994,5.91718,5.85881,6.08325,5.80855,4.9782,5.36777,5.70614,5.99087,5.85881,5.50627,5.48122,4.7723,5.42623,5.85881,5.55452,5.39982,5.96762,4.0283,5.81347,5.99677,5.33366,5.19708,5.26304,6.05777,5.63361,5.16567,4.75677,6.03907,5.67563,4.62688,3.92849,5.79395,2.65867,2.97938,4.5842,4.98249,5.26874,5.25174,3.55057,4.66208,5.64187,5.31553,4.11186,4.73308,3.97206,5.88492,2.95253,4.76537,5.55072,4.3709,5.14779,5.16309,5.46719,5.98501,5.59328,5.58149,5.69733,5.81347,5.09119,5.82835,5.11051,2.32385,5.0152,4.69212,2.70291,2.92858,4.91607,6.04527,3.84804,6.08325,5.90632,2.34912,5.96762,3.24172,5.21859,5.26874,4.56141,5.66284,3.08558,5.91174,5.8744,4.91607,5.84347,6.33918,4.04412,4.74316,5.86398,5.1154,5.71057,4.83696,5.2716,6.02073,5.6295,6.14994,5.99677,5.14273,5.68425,6.03907,5.60122,5.83337,5.32758,5.59328,5.55452,5.72851,5.79395,6.05777,4.38852,4.56564,4.90409,3.61405,3.57601,5.49188,3.49864,4.70831,3.91143,4.60018,4.41129,6.11604,4.52137,5.60922,5.61324,5.54317,5.92266,5.14022,5.61728,4.57559,5.94489,4.76537,4.98463,5.92817,3.62614,4.535,5.64187,5.80855,3.7049,5.28313,4.57989,6.26686,3.61405,6.17084,6.06408,5.74218,6.56232,5.25455,4.75848,5.70614,5.24335,5.5776,6.03907,2.70533,4.88056,3.55314,5.71503,4.33657,5.97918,5.43294,5.43294,5.51354,4.45464,3.73649,4.45844,4.08613,6.04527,3.16217,5.92266,5.99087,5.70172,3.92401,4.43583,3.96195,4.9201,6.06408,5.5172,4.23301,4.66053,5.10322,4.83696,5.86918,5.97338,4.99111,6.08972,3.39914,6.08972,5.60122,6.07043,4.19618,5.90092,5.58541,2.08831,5.74677,5.34285,4.48028,4.62839,2.64968,3.02469,5.17603,6.07043,3.55984,3.50793,5.88492,5.87965,4.14846,5.12032,5.95052,4.3023,4.01761,5.95619,3.64174,4.17873,5.15286,5.72399,5.78913,4.94873,5.12526,5.68425,5.91174,5.49546,5.60922,6.06408,6.05777,4.15219,5.19975,4.62688,4.84815,4.24629,5.90632,5.8744,6.16383,6.01468,5.07223,5.55072,5.91718,5.52455,5.86918,5.99677,6.04527,6.03907,5.42289,6.03292,5.79395,5.36148,4.26496,4.52273,4.16159,6.00271,3.8732,5.8384,5.33061,5.96762,3.12968,5.77956,5.86398,5.5172,5.00857,4.79339,5.68859,5.04674,4.82772,6.14306,5.67563,6.00271,5.09599,4.54188,6.09623,5.24335,4.45844,5.95052,5.74218,4.88835,5.76538,3.45484,4.59143,3.7115,4.04496,4.55439,4.91206,3.28086,5.83337,5.23227,5.33671,4.43087,5.64603,5.60922,3.8515,5.67563,5.63773,4.13366,5.93371,5.4777,5.01965,4.57274,5.92266,4.75677,5.52455,3.30784,4.19033,5.25174,4.5405,5.73304,5.31853,5.27735,3.95195,4.41493,5.34593,2.98374,4.93636,5.16309,6.03907,5.56215,4.31213,4.89422,5.59724,4.59288,5.92266,5.96189,5.72851,4.8767,1.58387,4.57416,5.21859,5.49188,4.93841,2.6909,4.06705,5.60922,3.89538,2.99838,5.31553,4.39804,4.06963,5.55833,5.15796,5.43294,4.8767,2.35887,6.28248,5.01742,5.77008,4.44707,6.05777,5.7376,4.84254,5.31553,5.7607,4.14567,5.32154,6.1922,5.55833,6.05777,5.82337,5.46371,4.98034,5.88492,5.95619,5.35523,4.54742,5.23779,4.8351,4.94665,5.45335,6.07043,5.75603,4.93431,6.18503,1.3349,5.0152,4.68732,5.6295,6.08972,5.77956,6.12272,5.19975,4.61344,5.85367,5.98501,5.30363,4.56706,5.99087,4.98034,5.77008,5.92266,6.06408,4.67937,6.38174,3.41244,4.50393,6.03907,5.71503,5.68425,5.84856,5.25455,5.61324,5.82835,6.44454,4.65432,5.83337,6.62686,4.80231,5.23779,5.93929,4.02912,5.94489,3.81545,5.6295,5.89023,1.75779,4.78631,6.07682,3.76593,5.13271,3.45811,6.07043,5.32455,3.07406,4.84628,4.4868,5.71057,4.54326,5.65861,5.36148,5.84347,5.08404,5.77956,6.10279,4.11186,5.20509,5.28894,5.83337,4.62538,5.04217,5.7195,5.11786,4.17108,5.61728,5.64603,4.6497,5.28023,5.97338,2.30553,3.25689,3.85775,5.32758,6.1922,5.41294,3.46561,4.81857,4.40284,3.1344,3.7285,3.86755,4.44707,5.04217,6.14994,2.78502,4.31213,3.44973,2.99868,5.64187,5.7376,4.57559,5.73304,1.95279,6.05777,5.88492,4.47639,5.26588,5.77008,3.113,5.52087,5.29479,5.54317,5.05593,5.59328,5.96189,5.85881,5.75603,6.19942,5.68859,6.02073,2.37615,5.98501,4.63595,5.36148,5.64187,6.43532,6.17791,5.91174,6.06408,5.31254,4.34221,5.73304,5.48832,5.65861,6.07043,6.16383,4.03161,5.91718,4.9998,5.64603,3.41781,4.20108,6.66076,2.20976,5.53196,4.9998,3.67022,6.00868,5.89023,6.04527,4.12908,5.97338,6.03907,5.82337,4.74316,5.76538,5.79879,4.27126,4.25662,5.24335,4.24423,5.97918,4.3744,3.35603,4.79339,6.63803,6.07043,5.61728,5.89556,1.90975,5.23227,5.89023,4.57989,5.53942,5.89023,5.82835,1.56666,4.47769,3.42773,1.88087,3.92924,6.0268,5.49546,4.60311,4.1913,5.7376,4.09228,5.72851,5.62134,5.95052,5.01078,5.77008,5.20778,4.30775,3.73341,5.40964,5.99087,5.28313,5.62134,2.35313,2.74461,4.43583,5.48832,5.62541,4.59143,5.18125,5.43631,5.81347,3.60319,5.60122,5.82835,4.15313,4.33545,5.77481,2.5842,3.63002,6.1922,5.95052,1.85054,5.30067,4.1227,4.28186,6.12946,6.27464,5.54317,6.34755,4.8767,5.8184,5.45335,6.09623,5.38047,3.80086,6.92198,3.78713,5.00857,5.07458,6.21402,6.21402,6.33918,3.95348,5.77008,5.54317,5.15541,4.21492,5.76538,6.07043,3.47745,5.74677,5.5099,4.74486,5.58541,4.17394,4.36742,3.85845,2.37504,5.88492,3.13711,4.3651,3.97833,5.60922,5.62541,4.12543,5.60922,5.21317,5.93929,5.91718,5.30956,4.46482,5.75139,3.65077,4.87863,5.69733,5.95619,1.84886,6.01468,5.45679,5.49905,5.30067,6.03907,5.09839,5.33671,4.58564,4.68572,5.05133,5.36148,4.39685,4.96758,5.30067,5.17083,5.00199,1.12606,5.24335,5.55072,5.3901,4.25144,4.91808,4.76883,4.64356,5.5099,6.27464,5.49905,6.04527,5.72399,5.38367,6.00868,5.83337,5.41294,5.8384,5.99677,5.84856,5.18387,5.80366,4.84628,5.93371,6.40817,6.04527,5.31853,5.52455,3.56763,5.78434,6.0515,5.40636,4.92211,5.21587,5.40636,6.13624,6.16383,4.26078,4.71485,3.25307,5.61324,6.15686,6.02073,6.19942,2.35872,5.45679,5.45335,6.04527,6.38174,4.22594,5.77956,5.06056,6.16383,6.06408,5.72851,1.10865,5.24614,3.2634,5.58934,5.24894,1.115,5.19178,2.56968,3.88459,4.76537,6.33918,5.92817,6.12946,6.71995,4.44707,5.49188,5.80366,5.13022,5.49188,6.29039,5.46024,5.84856,5.89556,5.67993,6.33088,5.97918,6.38174,5.34285,5.91174,5.74677,3.56659,5.97338,5.13521,3.75896,5.8184,6.16383,6.0515,4.85191,4.49599,6.12946,5.34285,6.00271,5.26588,5.51354,5.58934,5.65021,6.27464,6.17084,5.51354,6.10279,6.25147,5.93371,1.86232,5.27447,5.72851,6.1922,3.82687,5.53942,4.72641,5.89556,4.57989,5.67993,5.16309,5.6544,4.29796,3.98147,4.19813,4.30556,4.28719,5.8744,4.70505,5.02188,6.04527,3.38601,5.57371,5.89023,4.70831,6.08325,4.4125,2.65385,5.05825,5.5776,4.22897,4.4284,5.95052,6.24387,5.15796,4.26496,5.52825,5.29186,5.55072,4.67462,6.07682,5.93929,4.65432,5.36777,6.33088,4.94459,4.87092,5.75139,6.20669,3.31429,4.12543,3.61078,5.86398,5.32154,4.02664,5.13521,5.29479,4.91607,4.72808,5.70172,6.39047,5.08642,5.99087,6.09623,4.05765,5.7376,4.77579,4.58709,6.29039,4.67462,5.6295,6.0515,5.75139,3.21828,4.21095,4.65897,4.98463,5.3741,4.92211,3.60969,5.63773,5.90632,6.13624,5.3741,6.03907,6.14994,3.66446,6.08972,5.68425,3.5183,5.36148,4.35588,5.77481,5.90632,6.08325,5.54317,2.68874,5.98501,4.34902,5.31254,5.97918,5.28603,1.76121,3.95501,5.11786,5.0399,5.47068,7.19485,3.73464,5.86398,3.92774,6.5215,6.45384,4.869,5.36462,5.92266,5.02635,2.64076,3.91438,5.22952,4.03161,4.2776,3.33556,4.49995,5.36148,5.60521,6.06408,5.74218,5.34593,5.98501,3.14051,4.99111,2.98025,4.31763,3.44465,3.52527,5.53942,5.45335,5.38367,5.62541,5.78913,5.63773,3.92924,3.03138,4.57416,5.08642,6.17791,5.81347,2.7213,3.99818,5.17343,5.27735,5.55072,5.20778,5.41624,3.78908,5.80855,5.60922,5.59724,6.64933,5.96189,6.78287,6.18503,5.99677,5.5776,5.12773,2.36716,6.15686,5.14526,5.98501,5.6295,3.57077,5.18913,5.91174,4.4284,5.67993,2.40491,6.12946,5.0331,2.95366,5.89556,3.27774,4.74655,2.83512,5.55452,5.12773,6.23632,4.85191,5.18387,6.2214,2.59597,6.62686,6.38174,4.84628,5.80366,5.28023,4.8825,5.82835,5.72399,5.43631,6.09623,5.18125,5.96189,6.13624,5.90092,5.16567,4.76364,5.37728,4.57845,6.20669,6.00868,4.18162,5.7376,6.89256,6.01468,6.04527,3.23086,3.53582,2.2253,3.84116,5.02635,4.56847,4.78985,5.66709,5.6544,5.27447,4.72641,5.72851,4.69373,5.95619,5.40964,4.93023,4.69212,5.58934,5.48832,3.89177,5.49546,6.13624,4.50261,4.83881,5.99677,5.30956,4.74148,4.60458,5.51354,6.26686,6.1922,6.1922,6.22883,4.30121,6.21402,5.40309,4.33657,6.30639,3.32856,5.78434,6.00271,5.77008,5.29479,6.25914,5.29773,3.62559,6.08972,5.92817,5.56984,5.97918,5.19708,4.56,3.34345,6.19942,4.48028,4.84815,4.8204,5.68859,5.14273,5.92817,5.25174,5.55452,6.24387,5.75603,4.45464,5.4465,4.24938,3.85497,3.54241,5.05133,5.71057,5.56984,5.11051,5.7607,6.12946,5.37093,2.01427,5.95052,5.64187,2.34496,4.36858,4.14567,5.12278,6.10279,6.21402,5.3741,4.61196,5.41294,5.90092,4.91407,1.49028,2.53995,4.45085,4.25558,5.8744,5.55833,2.26037,5.93929,4.42964,5.61324,6.09623,5.46719,6.25914,3.3834,4.59288,6.32265,3.19252,2.12459,4.15406,5.19443,4.57702,5.79395,5.22952,3.88674,4.61048,5.22404,6.3645,5.95619,5.25174,5.34902,6.08325,5.74677,5.84347,5.09358,5.56984,4.73475,6.46323,6.25147,4.47381,4.50393,5.98501,5.3901,6.58338,3.75581,4.67462,6.09623,4.47769,5.33061,4.89422,5.98501,2.60509,5.70172,3.0486,5.44309,3.8035,3.69596,5.51354,5.8384,3.67022,5.61728,6.13624,2.11356,5.10322,5.49905,5.95052,4.39327,4.25144,6.04527,5.49905,4.67778,5.09599,5.45335,5.90092,1.51481,6.0515,5.84347,4.62388,2.98403,5.27735,5.54694,6.20669,4.61939,6.20669,2.90331,6.05777,5.0888,5.96189,4.90211,4.40284,5.30956,5.5776,6.08325,5.72399,6.15686,4.23505,4.14846,5.89023,5.61324,4.89422,6.07682,1.05226,2.68312,5.84856,5.23227,5.90632,5.33061,4.96336,5.66284,3.88961,3.99818,4.35474,4.68572,2.97131,4.74316,6.16383,1.46449,3.48415,1.56807,4.38261,2.0951,5.39982,4.74316,4.33097,5.60122,5.47068,4.35359,5.20242,5.58149,1.8827,4.39446,5.62541,3.3645,6.02073,5.47418,4.62238,2.31442,3.84597,4.6497,3.60049,1.85599,4.85003,5.14526,2.65699,3.93524,5.66709,3.20369,5.67135,4.86709,5.48122,5.52455,6.33088,6.08972,5.7376,5.27735,5.30956,5.14779,5.68425,5.97338,5.67993,5.7376,5.72851,4.69857,5.6544,5.4397,5.99087,5.81347,3.06235,4.59288,4.24629,5.58149,4.14567,4.9998,5.14273,5.69733,5.90092,5.56215,4.11546,5.91718,5.05363,6.21402,6.06408,4.66833,4.79517,5.94489,5.93371,2.39066,3.91217,4.74316,3.39606,3.72972,5.92266,3.84116,4.59143,3.91585,4.7671,6.12272,5.36462,5.07223,5.66284,6.37308,4.74316,6.49194,5.53568,5.17603,5.46719,5.07458,5.37728,6.00868,4.003,5.13521,3.89974,5.17083,5.83337,5.72851,6.33918,5.70614,3.48799,5.95619,5.17343,4.83141,5.17864,5.70172,5.35523,5.8744,3.66964,3.46797,5.58934,5.56215,3.87675,3.58446,5.72399,4.33433,5.42958,4.78279,2.6023,5.55452,4.7723,3.25003,4.99327,4.54326,4.45971,4.98463,5.90632,3.74891,4.68095,5.45335,4.90211,5.49905,5.58541,4.98679,4.81131,5.74677,5.72851,5.99677,4.96125,4.29149,4.62538,5.04445,4.78455,6.5017,4.50527,4.82956,5.54694,5.70614,6.01468,5.4777,4.47381,5.96189,6.08972,4.64051,5.99087,5.16825,4.80411,6.10939,5.18387,5.86918,5.86398,5.62541,3.14939,4.76364,5.83337,5.6295,6.00868,5.87965,6.0515,6.05777,5.97918,5.92817,5.31853,5.66709,3.32733,4.00219,4.48028,5.46024,5.7195,4.87863,5.16825,4.99111,5.73304,3.83433,5.96762,5.38367,6.10279,5.87965,5.03085,5.82337,5.80366,6.02073,5.73304,6.04527,5.72851,6.07043,5.90632,5.59328,5.67135,5.26874,5.46371,5.83337,5.33061,6.04527,5.72851,5.66284,4.90409,5.32154,5.55452,5.93371,6.03292,4.85568,6.0268,5.07694,3.45345,5.22131,5.24614,5.82835,4.07828,5.60122,6.00271,4.70831,5.11051,5.36462,4.73308,5.53568,5.99087,3.10903,5.49905,6.22883,6.14994,5.61324,6.05777,6.07682,6.02073,5.70614,5.36777,5.71057,5.56215,5.10081,5.41956,4.75677,5.00637,3.40178,4.4284,6.15686,6.04527,5.46719,2.99074,5.69295,5.6544,3.74268,4.6652,5.34285,2.90573,5.58541,4.64356,4.44081,4.7018,5.39982,5.91718,2.18709,3.50695,4.79695,5.77008,5.58149,4.94665,4.79695,5.90632,3.75142,4.94252,5.56215,4.73308,5.37093,6.41714,6.07043,5.67563,5.8384,6.10939,6.0268,5.92266,5.59724,5.70614,5.86398,4.43707,5.34285,5.78434,4.59434,4.32539,5.68859,6.0268,5.65861,5.80366,5.14022,5.01742,5.48476,3.84804,5.62541,6.08972,5.32758,5.47068,5.98501,6.0515,5.90632,4.62238,5.80855,5.33977,5.97338,5.85367,6.09623,5.99087,5.93371,5.91174,5.79879,5.84856,4.98249,5.54694,3.71814,4.72144,5.54694,6.21402,4.82405,5.49905,5.97918,5.66709,5.95052,5.00857,4.50261,5.70614,5.61324,4.67462,6.23632,4.8767,4.62238,5.18913,4.34675,3.19611,6.00271,5.72399,6.05777,5.47418,5.75139,6.08972,6.12946,5.75139,5.18913,6.19942,4.47252,5.96762,6.09623,4.74486,5.97918,6.46323,3.31957,4.206,5.43631,5.95052,4.72974,4.58998,6.12946,4.47639,6.14994,5.96189,5.70614,5.90092,6.37308,5.59328,5.82835,5.74677,5.97918,5.83337,4.12908,4.33657,4.94873,6.20669,5.79879,5.95619,4.32985,4.84067,5.85367,3.56347,5.66709,5.36777,3.01654,6.10939,6.78287,6.26686,6.34755,5.48122,5.77481,5.77008,5.80366,4.29256,5.56984,5.56599,3.20405,2.75081,4.36048,4.27126,5.83337,5.8184,5.56215,5.97918,4.48418,5.99087,2.87657,5.16567,2.85282,3.99338,4.94252,5.13022,5.61728,4.28399,5.20778,5.69733,5.65861,3.46986,6.04527,4.69052,6.10279,3.28754,5.77956,6.01468,5.50265,5.05133,6.00271,5.74218,3.68067,5.34902,4.91607,5.8744,6.03292,2.1273,3.58022,5.94489,6.08325,3.56451,4.06534,5.33366,3.15317,2.54519,4.91407,6.10939,4.19227,5.74677,5.8184,5.74218,3.53582,5.97918,5.22404,4.68254,5.88492,4.56989,4.67305,5.46371,3.56659,4.3265,4.31763,6.04527,6.07682,5.8384,5.93371,3.46092,4.45085,4.72475,5.99087,5.48832,3.9799,4.0283,4.77928,5.14526,6.07682,5.90632,5.62541,4.71485,6.14306,5.29186,5.85881,2.51362,5.63773,5.93371,5.7607,5.27447,5.83337,5.39982,5.07458,5.08404,5.7376,3.77744,3.68711,4.44206,2.81037,5.32758,3.00757,5.01742,6.17791,4.5405,4.35474,3.56868,6.0515,5.04217,4.11366,6.13624,6.51155,5.41294,5.56984,5.99677,5.31254,4.43956,4.45337,5.99677,4.30665,3.6936,6.42619,6.57279,3.30383,5.68425,5.68859,5.09119,4.38733,6.10279,6.07682,4.67462,6.07682,4.60018,6.25147,5.69733,5.05825,4.72475,4.9998,5.27447,5.98501,5.63773,5.85367,5.54694,5.77481,6.06408,5.46371,6.10279,5.41624,5.97918,4.88445,4.21992,5.17343,3.85011,5.21587,5.48122,5.34902,1.75745,5.68425,4.92211,4.80951,5.53196,6.11604,5.66709,5.4465,4.97607,1.95227,5.49905,4.58276,3.52978,2.81355,4.17873,4.31763,5.00199,4.26706,4.49072,4.57989,4.14939,4.54326,3.97597,5.89023,5.21317,4.11817,6.00868,4.73643,4.60164,5.84856,5.28894,6.14306,4.78103,5.79879,4.94665,5.16825,5.84856,3.6328,5.6544,5.96189,5.78434,4.93841,5.90632,4.88835,5.06521,5.99087,5.77008,5.24894,4.869,6.04527,6.12946,5.96762,5.22952,6.17084,4.79873,4.50527,5.08167,5.31853,5.6544,5.17603,6.38174,6.95228,3.73773,5.96762,4.98034,3.83094,3.79169,4.34675,5.52087,4.14846,4.94252,5.93929,5.36777,5.48832,5.98501,4.53637,5.93371,5.95619,5.69733,5.78434,5.37728,5.5172,5.72399,6.01468,5.39982,5.82337,5.75603,5.04217,2.72961,5.66284,5.95619,6.05777,5.59328,4.21692,5.73304,6.09623,4.9782,4.31984,2.18801,4.54465,6.03292,4.4881,4.44206,6.03907,4.78279,5.70614,5.67993,4.25766,5.75139,5.92266,5.49188,5.91174,5.30659,5.30659,5.49188,5.06989,6.03907,5.66709,4.18066,5.18125,3.91659,6.10939,3.91438,6.14306,5.30363,4.70018,5.79395,5.96189,5.12032,6.04527,4.84254,4.93431,6.05777,2.82689,6.03292,5.70614,5.58934,5.74218,4.93023,5.97338,5.68859,5.84347,5.24057,5.48476,5.56215,6.56232,5.95619,5.40964,5.98501,5.99677,5.12278,4.69373,5.47068,6.46323,5.91718,5.22131,4.41371,5.21317,3.95118,5.27735,3.35266,5.14526,5.93371,4.6652,4.49072,5.8384,5.47418,5.0399,5.86918,5.64603,6.17791,5.48122,4.65897,5.90092,6.38174,4.87092,6.14306,5.72399,5.88492,5.39657,6.0515,3.12331,4.28612,3.55726,4.32985,4.62388,4.37791,4.83325,5.58541,6.14306,4.53363,4.39089,5.80855,5.77956,5.84856,6.78287,6.03292,5.09839,5.88492,5.58934,4.71485,5.40636,5.5099,5.88492,5.82835,6.3645,5.77481,5.49905,5.52087,5.80366,5.89023,5.98501,6.03292,4.52953,3.79234,4.78631,4.4751,4.51867,5.79395,4.95497,6.04527,5.13771,3.92924,5.55452,5.15032,5.97338,5.79879,6.04527,6.26686,2.25573,5.12032,5.95619,5.02188,1.20701,5.42623,1.00831,4.56,5.72399,5.55833,5.78434,2.27458,2.49615,4.58132,5.21317,4.1597,2.48638,6.10279,1.83706,5.37093,2.80574,1.83494,6.44454,5.32154,2.89849,3.1203,2.52459,4.12179,5.10081,4.62238,1.0992,5.76538,5.30659,2.89105,2.93993,3.14733,5.77481,3.6146,4.52273,2.83362,3.98069,5.18125,5.99677,5.16309,6.04527,5.17343,5.95052,5.82337,5.67993,2.05158,3.18858,6.0268,5.8744,5.24894,6.69585,3.96041,6.04527,1.06294,4.16632,3.53784,4.25766,4.83325,5.06989,5.49905,2.47337,4.20996,3.71996,6.13624,5.56984,4.74148,4.08964,5.0152,6.02073,5.80855,5.09839,5.06521,5.55072,4.74824,4.30556,6.15686,5.22404,6.66076,6.12272,5.68425,5.39333,5.33977,5.41956,5.35835,5.93371,5.95619,5.0286,5.75139,6.0268,5.41624,5.55833,5.7195,6.17084,6.10279,6.07682,4.56847,4.10291,5.94489,5.04445,4.94252,6.23632,3.53835,3.79234,5.39657,4.73811,3.70969,3.44373,6.07043,4.00461,4.35933,5.31254,4.08264,3.47508,5.5172,5.19975,4.89422,5.88492,5.11296,2.61489,4.20798,5.64603,4.56423,5.37093,5.83337,5.66709,4.93227,5.96762,5.65021,5.11296,5.68859,5.93929,3.98939,6.09623,5.69733,3.84804,5.56599,5.95619,5.64187,5.8184,4.00139,5.67135,5.88492,4.76364,5.79879,5.99087,5.93929,5.55072,4.63899,4.80411,5.81347,5.4465,5.75139,3.73711,5.48122,2.0587,4.45717,6.12946,5.59328,6.08972,3.20224,6.15686,3.75833,3.71391,4.90807,4.52816,4.34789,4.33208,5.69733,5.06521,6.22883,4.91007,5.06521,5.67563,6.24387,5.28603,5.90632,4.81494,2.84242,5.7376,3.86054,5.70172,2.05882,5.91174,5.58149,6.0268,5.19708,5.32154,6.07682,6.80918,3.89901,6.24387,4.37207,5.8384,4.11456,4.56706,4.57989,6.00271,5.78434,4.91607,5.68859,4.33995,4.99327,5.81347,5.5172,5.59328,4.98894,5.64187,5.71503,4.34448,5.86398,6.43532,5.7607,5.91174,4.61939,4.87284,4.99762,5.89556,5.17083,5.86398,5.3901,5.8744,6.15686,3.08526,4.02747,5.47418,4.09936,4.0705,5.77956,6.02073,6.14306,5.42958,5.61728,1.43601,5.92266,3.55778,3.95271,4.86327,2.51982,5.4465,3.53734,2.87553,5.04903,6.25147,2.42101,6.15686,4.5066,2.43653,4.61493,6.13624,5.99087,5.39982,6.05777,5.6544,5.11786,5.89556,5.8744,4.76192,5.79395,2.19936,6.64933,3.94584,2.30582,4.99111,6.5417,5.20778,5.07223,6.27464,1.92235,4.59143,5.39657,2.01792,5.55452,2.65552,4.4559,2.1938,2.80842,5.68425,4.09228,1.78979,5.85367,3.24738,4.73308,4.37908,2.86154,5.52825,3.74082,5.1865,2.38665,4.90409,5.67563,5.40964,6.14306,5.06755,5.67135,5.6544,6.25914,5.84347,5.35212,6.10939,5.30363,4.34448,5.72399,5.60521,1.35855,4.50128,3.18466,5.86918,5.56984,3.48032,3.95042,3.80152,4.24732,3.85219,5.38047,5.26304,5.77956,5.38688,5.47418,6.27464,4.39446,4.42348,2.96102,4.73643,6.20669,4.51061,4.08002,3.15974,3.97754,3.39914,3.48127,5.92266,5.2716,2.12311,4.23708,5.15286,4.68892,4.21095,4.73475,4.0705,3.83843,3.7533,4.8444,6.20669,5.06755,3.55417,2.92529,3.94128,3.39782,4.69695,1.6065,3.21865,5.01078,2.76683,4.31543,5.60922,5.35835,5.32758,5.57371],"c":[-0.35135,1.14592,0.26208,0.98524,0.09222,-0.50343,0.41674,-0.27725,-0.63953,0.32857,-0.67098,0.43557,-0.41643,-0.23957,0.78766,0.61837,-0.17092,-0.92163,-0.06569,-0.46404,0.22368,-0.50505,-0.02506,-0.47039,0.4024,-0.31189,-0.5034,0.35085,-1.12767,1.51569,0.28727,0.83684,0.31857,-0.35637,-1.872,-0.57479,0.29359,-1.16646,-0.56007,0.5012,0.34012,0.02206,-0.57066,-0.25956,0.77348,0.23328,-0.23864,-0.58263,-0.0508,-1.20056,1.08852,0.58802,-1.28308,-0.90772,-0.59298,0.00497,-0.8963,-0.28442,0.09536,0.17335,-0.02518,-0.30246,-0.17128,-0.24479,0.12322,1.23589,0.06035,0.52581,0.13386,0.72965,0.39291,-1.14207,-0.82581,-0.41147,0.14919,0.59581,0.05553,0.36599,0.74261,0.37368,1.10468,-1.04757,-0.01018,1.22176,0.71261,0.02971,0.86354,-0.03026,-0.69597,-0.67044,-0.54386,0.0373,-0.77394,0.74243,-0.31189,-0.967,-0.17367,-0.21654,-0.73563,0.14047,0.14787,0.47093,-0.55613,-0.10408,0.41806,0.49062,0.25159,1.14499,-0.614,-1.64882,2.64005,1.20138,2.17017,-1.36868,-0.83205,-1.66889,0.435,4.12982,0.16562,0.65114,0.93265,0.07953,0.69901,-0.42901,-0.40669,-0.38685,-0.44454,0.00602,2.21055,-0.25949,0.0766,0.29805,0.10579,0.44298,-0.10167,0.49597,-0.44165,-1.23991,0.7384,0.93458,0.51182,1.08332,0.2872,0.41398,-0.00479,-3.91516,-0.44223,0.14117,0.67842,-0.59821,-0.9938,-2.19337,0.10665,0.30684,0.17046,-1.5996,0.43735,-0.35647,-0.14816,1.44089,-0.33635,-1.71132,-1.15409,-0.52761,-0.41429,-0.00963,-0.46615,-1.64747,1.5584,1.76693,0.50538,1.06787,-0.34356,0.09771,-0.83112,-0.05166,-1.061,0.27928,0.34586,0.00868,0.76579,0.39115,-0.28795,-0.06694,-0.05165,0.89879,-1.17782,-0.76711,-0.08712,-0.16941,0.09112,-0.84859,0.07843,-1.3938,0.26422,-0.4035,0.42638,-0.58193,-0.4087,2.25201,-1.43742,-0.27359,-0.4451,-0.48112,-2.46104,-0.63365,-0.87368,1.02114,0.14613,-0.82723,-0.35236,-0.35374,0.70969,0.44587,0.52461,-0.7392,1.79218,-0.28359,-3.50339,0.76135,0.97821,0.32929,-0.47193,2.3949,-6.4065,-0.41827,-0.18395,0.39288,0.40875,-7.02432,-3.46637,0.79894,-0.0621,0.08992,-0.27267,-0.17332,1.01821,-1.88161,-0.69603,0.49488,0.07936,0.11328,-2.379,-0.31708,-0.96476,1.10634,0.78068,-0.71218,-0.89166,-0.62597,-0.46748,-0.10298,0.13979,2.87473,2.27488,1.66957,0.50695,-0.15404,0.73232,-0.4054,0.02942,-0.24556,-1.56403,0.17198,0.28328,-0.24699,0.89324,0.31385,-0.86949,0.24731,-0.17999,-0.51941,2.02173,-0.60785,-0.32561,0.30105,-0.43087,-1.30364,0.0992,-0.37167,4.66785,-0.01785,-1.5476,0.14088,0.50369,-0.09172,0.25047,-0.08671,-1.0765,0.52747,0.02879,0.05559,2.99566,-0.36521,0.81295,-1.38959,-0.22664,-1.79655,-0.00876,-1.42279,-1.93069,-0.26016,-0.45526,-0.80923,-0.69475,0.32213,-0.15995,0.37746,-0.22924,-0.16103,-0.68354,-0.38177,-0.06375,-0.84816,-0.57329,-1.03835,0.87953,-0.80819,-0.22579,-1.09167,-2.08472,-5.67056,0.5415,0.01103,2.56503,-1.27452,-0.95938,-1.0853,0.16079,1.13159,1.18937,-0.97982,0.28466,-0.4816,0.82708,-1.15916,0.19653,-1.59275,0.30568,0.0922,0.77988,0.1687,0.41414,0.04638,0.27378,1.22165,1.21157,0.34444,-0.23619,-0.70178,3.32023,1.42404,-0.21583,0.0704,1.06702,0.23313,0.04459,-0.35126,0.33964,0.34657,1.20269,1.14172,-0.06091,0.41162,0.61796,-0.2314,-0.15722,-0.15668,-0.22923,0.71905,-0.10301,-1.74607,0.69144,0.13075,0.90779,0.3814,0.2327,-0.48841,1.30362,0.55143,-0.65495,-0.15153,-0.00561,0.19299,0.07697,0.43895,-0.83385,0.06816,-0.32153,-0.68229,0.91017,-0.31465,-1.19396,0.30317,-0.30324,0.00714,0.72545,-0.49993,-0.73519,-0.01552,-0.14244,-0.61242,0.27471,1.34842,1.71404,-0.51574,-1.10245,-0.51245,0.2762,-0.18481,0.40231,0.09971,0.90775,-0.01758,0.118,0.00037,-0.45399,0.13995,-0.06547,0.31647,-0.44009,0.29469,-0.25231,1.0659,-0.55762,0.80179,-0.36065,1.58639,0.13083,0.71413,-0.05649,0.34816,0.13778,0.39248,0.30402,1.1265,0.826,-0.77358,0.5423,0.9238,0.86777,1.12255,-0.05741,0.0694,-0.29851,-1.2018,-0.10947,-0.12749,-0.21997,-1.17346,0.44748,0.31566,0.9595,-0.60359,0.45612,-2.42318,0.87089,-0.91708,-0.26232,0.03395,-0.83911,0.80469,0.02569,0.50092,-0.67337,1.39792,0.48868,0.69757,0.43675,0.57198,-0.37779,-0.44766,0.14248,-0.50546,-0.77373,-1.69147,-1.25045,-0.19261,-0.83121,0.32342,0.74548,-0.19113,-0.06022,0.04407,0.80943,-0.34911,-0.45678,0.09576,0.13032,0.01862,2.20118,0.58111,0.50603,-0.12288,-0.21553,0.27734,-1.62711,-0.79235,-0.95478,-0.07596,-0.06463,0.61777,0.67811,-0.12173,-0.53366,0.03702,-0.73839,-0.9927,-0.15559,-0.25782,0.12391,-1.00098,0.53452,0.58888,0.2181,1.38093,0.31439,0.12945,0.29154,-0.66305,0.4182,0.47031,0.66651,-0.64294,0.87548,-0.59111,0.53757,0.60698,0.50753,1.57823,-0.01602,0.04856,-0.00152,0.54348,-0.58143,0.60654,0.20389,-0.0157,1.21427,-0.94425,-1.19414,1.35935,0.39178,-0.25309,0.96347,-0.88345,-0.60469,-0.52473,-0.22931,-0.1923,-1.43432,-0.21351,-0.30151,-0.1197,0.48512,0.0855,0.28353,0.28793,0.59251,0.27812,-0.1497,-1.05149,0.06753,0.86212,-0.7908,1.08973,-1.17819,-0.03561,0.46626,-0.13469,-0.95313,-0.06552,-0.07775,0.29592,1.19381,-0.00518,-0.94883,0.06199,1.24947,0.09355,0.18215,-0.21962,0.5057,-1.16693,-0.805,0.14073,-1.46184,-2.41494,-0.37015,0.45628,-0.82591,1.17223,0.93484,-0.78246,0.34371,0.04722,1.10891,-2.71167,-1.55508,0.26312,0.46348,-0.30884,0.45511,0.80568,0.39043,0.67513,-0.11024,-0.34403,-0.1464,-0.25596,-0.00473,0.58945,0.72569,1.06719,0.31244,0.31928,0.9755,0.97063,-0.16461,-0.00028,-0.55469,-0.00641,1.37712,-0.08675,-0.62413,0.28176,0.28929,0.02994,0.25946,-0.63188,0.0889,0.16976,-0.19976,0.04945,0.40813,0.6553,-0.43836,0.50937,0.20369,-0.6441,0.33035,0.96284,0.68674,0.8468,-0.30687,0.0948,0.07291,-1.23071,0.65974,0.18266,0.30349,1.22385,0.51912,-0.32277,-0.01033,-0.02958,1.19944,0.73288,0.90722,-0.7318,0.37439,0.03698,0.49544,0.13039,0.2693,-1.51171,-0.34726,-0.30079,-0.20481,0.52374,0.71847,0.97985,1.30116,2.93458,0.39262,1.94603,0.12218,0.1899,1.02154,0.18917,-0.84572,0.66274,0.56328,0.33687,-0.23254,0.14426,-1.12369,0.12432,0.11733,-0.03762,0.31208,-0.21339,-1.00855,0.12013,0.99963,-0.28003,-0.86785,0.61223,0.21739,-1.11597,-0.00966,-0.62437,-0.27607,0.32047,0.52935,0.0553,0.09897,0.3724,0.36261,-1.10502,-0.35754,0.2717,-0.90479,-0.97862,-0.35606,-0.87622,-1.30674,-0.5087,0.16688,-0.10561,-0.24832,1.63427,-0.32556,-1.3578,0.07728,-0.55871,-0.24526,-0.95788,0.02036,-1.57647,-0.41048,1.36034,-2.16095,-3.96422,-4.06229,-1.17471,-0.53907,0.57853,1.08285,0.91852,-1.44461,0.1901,-0.30554,-0.79285,-0.92943,-0.37737,0.73121,-0.48153,-1.73883,0.04117,-0.49607,-0.66484,-1.11097,0.02997,-1.75132,0.01399,0.37021,-0.32203,-0.10583,0.12094,0.66789,-0.68082,-1.05218,-0.93926,-0.20792,-0.01165,-0.14332,0.4141,0.22707,-0.11045,0.56533,-2.08822,0.94339,1.02002,0.48661,-0.3856,0.80635,-0.48041,-0.49039,1.15829,-0.015,-0.42731,-0.7314,-0.39648,0.42315,-0.03106,-1.16351,-0.42307,-0.57514,0.71538,-4.67607,-1.79354,-0.08892,1.7794,-0.56478,1.52599,0.50403,-0.11749,-0.74244,0.95373,-0.20419,1.96597,-0.12914,-0.21397,-0.61032,0.95363,1.33001,0.08519,-1.07318,-0.19608,0.17704,1.33844,0.54926,-0.83029,-2.26641,0.06934,0.40878,-1.36593,0.21376,0.35415,0.04314,-0.90697,0.33453,-1.3426,-1.83823,0.45003,0.29005,0.87904,0.3118,1.43778,-0.76536,-0.20907,0.21468,-0.12841,-0.08262,-1.67544,-0.5987,-0.45966,-0.21306,-0.44678,0.97481,0.21083,2.66901,3.25314,3.25069,0.61131,-1.60887,0.27421,0.36956,0.02789,2.56526,0.54336,-1.28613,-0.7319,0.20951,0.60356,1.13468,1.70054,0.60479,0.62004,0.23312,0.63861,0.37212,-0.47424,2.30442,1.09704,-0.33984,0.15733,-0.1261,0.04001,-0.01865,-2.57737,0.59618,0.29662,0.5159,-0.10503,0.61161,-0.55688,0.40847,0.80678,1.75769,0.64415,0.47328,-0.26587,-0.33861,-0.10572,-0.52407,-0.16616,-0.93008,0.30767,6.12997,-1.40095,-0.85797,-0.8465,-0.46357,0.87023,-1.52025,0.40757,-0.80228,-0.82406,-0.19028,-1.11545,0.14954,0.6957,-0.29084,-0.31421,1.5374,0.83152,-0.24835,0.1481,-0.55917,0.06312,0.00254,-0.59023,0.36782,-1.11778,-0.48838,-0.41698,-0.24432,0.1517,0.51494,1.50071,0.05612,0.00119,-0.74352,0.81847,1.02174,1.13932,0.14968,0.30643,-0.00435,0.30008,0.21053,0.23223,-0.46887,-0.95859,-2.01958,-3.80424,-1.26268,-0.38841,-0.10426,0.19475,-0.36432,0.10847,-1.38258,-0.14209,-0.1859,0.25484,-1.47246,-0.46973,0.32677,0.62172,0.11882,1.22888,0.79809,0.36145,0.97676,3.00217,0.40072,-1.26779,0.16446,2.04609,-0.1782,-0.30357,-0.7688,0.4329,0.66557,0.17935,-0.78007,3.64699,1.3266,1.50675,-0.20256,0.14933,-0.26019,-0.1928,0.1416,0.93383,0.10385,1.14752,-0.29101,0.32099,-0.7651,0.68254,-0.55087,-0.71586,0.49821,-0.27798,0.1511,0.63088,-0.13144,-0.18235,0.23178,0.11105,-0.17062,0.05933,-0.61664,0.57254,-1.14189,0.11149,0.80962,0.09579,-0.56807,-0.24627,-0.46496,0.21083,0.58264,-0.36041,0.62475,0.89923,0.78337,0.51214,1.3612,1.83936,0.44842,0.02097,-0.13446,1.05441,0.39569,0.33516,0.2615,-0.79824,0.07332,-0.77779,-1.93921,0.75206,-0.73273,-0.35539,0.33411,0.80773,0.2412,0.24811,-0.48126,0.47302,0.04187,0.31833,0.95838,-0.01333,0.53429,-0.32711,-0.19877,0.81599,0.2106,0.04002,-0.18701,-0.92561,0.11124,-0.30861,0.1526,-0.77748,0.12065,0.04435,-0.15761,-0.45205,0.44311,-0.17803,-2.53579,-0.16677,-0.29377,0.52638,-0.08017,-0.07329,-0.32427,0.00919,0.83248,-1.06752,-0.38828,-0.62941,-0.75066,0.4005,0.4367,0.33765,0.5962,0.71332,-1.05138,-0.19931,0.00323,-0.5872,1.64932,0.23022,0.62377,1.22563,-0.59541,0.26759,0.45936,1.02846,1.53911,0.52486,-0.11998,0.04691,0.01412,0.52857,0.67007,3.37566,0.33638,2.69686,0.4002,0.00544,1.38279,-0.23096,0.82695,0.98091,-0.67232,0.49443,-2.1327,-0.04442,0.43418,-0.24569,-0.63731,2.54677,0.44845,-0.53754,-0.24251,-0.30193,1.56968,1.57245,0.19257,0.76187,-0.48252,0.43172,0.46044,0.78767,-0.17348,-0.46329,-0.54942,-0.3036,-0.978,0.15977,-0.61965,-0.06243,-0.17983,-0.25413,1.22674,-0.73917,1.90942,0.31602,-0.08654,-0.63084,-0.42874,-0.3836,-0.36076,0.16277,0.65599,0.1921,2.27802,-0.3434,0.02696,-0.84787,0.66152,0.30072,0.60197,0.18126,0.53772,-0.21977,-1.79795,0.84532,-0.25273,0.41825,-0.06357,0.5978,-0.35309,-0.91124,6.65195,0.37703,1.86621,0.15612,-0.13923,-0.26965,1.05182,1.30015,-0.44121,0.0168,-0.99922,0.48119,0.42484,-0.05128,0.48138,0.17309,-1.95387,-0.29097,-1.08853,-0.40062,-0.69895,0.75864,-0.22622,-0.72516,-0.07853,-0.81513,-2.0537,-0.66439,0.71778,0.58511,-0.75105,-1.05369,-0.04007,-0.22755,-0.35933,0.3352,-0.68711,0.52431,-0.22827,-0.26379,-0.75632,0.23497,1.09993,-0.2287,-0.70572,-0.15614,-0.29877,0.73518,0.83999,1.00419,0.33192,-0.0553,0.22202,-1.09684,0.59555,1.61317,-0.8486,0.82739,0.45665,-0.03864,-0.21044,-0.23414,-0.628,-0.00099,0.52046,0.10843,2.22846,0.46972,0.6561,0.13444,-0.30349,0.14016,0.01255,-0.36318,-0.10905,0.86286,0.27917,1.34306,0.66067,-0.02562,-0.94811,-0.61659,0.40673,0.27456,1.07459,-0.09672,0.62439,0.05196,0.37944,1.0708,-0.11049,3.21362,2.32027,-0.65573,1.37023,0.25816,0.01777,-0.35995,0.89273,-0.35378,1.101,0.96963,0.04911,-0.21555,0.46788,0.64869,-0.07819,0.30099,0.60338,0.21045,-0.30977,0.57807,1.05803,0.29526,1.03959,-1.67886,0.85385,0.13644,0.1287,0.67053,-0.27681,-0.95041,-1.87889,-4.03944,-0.82588,-0.14146,-0.77773,-0.12668,-0.55089,0.77197,0.04221,-0.55654,-0.84853,0.51126,0.00393,0.38964,-0.88086,-0.60642,1.77619,0.60738,-0.30647,1.38845,-0.06473,1.09549,0.00138,-0.58089,-0.19544,0.00256,0.68257,-2.22167,-0.30498,0.67534,-0.71563,-1.00426,0.30584,-1.14923,-1.18675,-0.2776,0.52347,0.76309,0.75702,-0.19368,-0.23422,0.60974,1.31426,0.47308,-0.24077,1.51823,-0.56306,1.0091,0.01036,0.53314,-0.01206,-0.43491,0.67269,2.56834,-0.44306,0.41518,0.58844,0.34141,0.11401,0.66241,0.38661,-0.10286,-1.1359,0.75635,0.8464,0.27264,0.63358,-0.07798,1.51737,-0.02475,0.31501,0.00777,0.01216,-0.06627,0.70317,-0.13184,-3.20969,-1.89149,0.25565,-0.8863,0.84866,-0.17219,1.64102,0.25427,-0.78467,-1.74617,0.93504,-1.57341,0.8615,0.62055,-0.59062,-0.21142,0.02275,0.61462,0.46092,-0.58934,-0.37281,-0.42144,0.00292,-0.53441,0.05105,0.80913,-1.60925,1.21565,-1.03692,-0.74055,0.28689,0.32736,3.22787,0.0511,0.7704,-0.36596,1.6673,1.2767,0.95631,0.14349,0.91301,-0.11131,0.27951,0.28155,0.35406,-0.11284,0.16791,0.51891,0.4887,-0.809,0.94255,-0.3083,-0.70153,-1.07934,0.8172,0.72634,1.10847,2.82212,-0.39806,-0.04832,0.47039,0.41374,-0.26645,-0.05849,-1.73687,-0.19182,0.51807,-0.97152,0.27653,1.52761,1.16638,0.8814,0.18458,0.64728,0.11758,0.27184,-0.39695,-0.09159,-1.46001,-2.58129,0.75306,-0.24518,-0.08458,0.91998,0.69802,0.74024,0.83008,0.38994,0.01724,0.55027,0.12559,-0.57078,0.03748,-0.43693,-0.27506,-0.53912,0.58519,-0.72856,-0.50427,0.60564,-0.42413,-0.55265,0.37496,0.06178,0.1357,0.69749,1.19368,1.73104,0.21619,0.56841,0.81308,0.27798,0.93896,-0.38145,-1.98053,-1.19741,-3.37061,0.57691,-0.43711,-0.22334,-0.39447,-3.40735,-0.07869,-0.24765,1.04049,-0.17628,-0.36681,-0.27835,0.9491,1.3478,1.4125,-0.20711,0.11185,0.18548,-3.09514,0.49961,1.07911,-0.80535,0.11794,-0.67574,0.05367,0.43959,-0.86538,-0.21663,0.21957,-0.37906,0.10525,-0.02179,0.5074,1.06272,-0.22872,0.91492,-2.25791,0.01855,0.23155,-0.1826,0.05623,-1.30468,-1.41433,-0.22598,0.64199,0.43748,0.94186,-0.58595,0.16306,-0.84205,0.05726,0.44416,-0.98885,-0.23709,0.18304,0.53289,0.86502,-0.29312,-0.74971,1.8896,-0.31183,0.78135,-0.33697,0.38204,1.01992,-0.16077,2.81255,-0.16474,-0.04389,-0.27377,0.61814,-0.57113,0.55485,-0.80294,0.48809,0.16509,0.22967,0.60788,0.11568,-0.28244,0.3071,0.42081,-0.25281,1.43957,0.71594,-0.4367,0.03451,-0.27721,0.20663,-0.16402,-0.44311,-0.39598,1.17973,-0.29204,0.05065,-0.75228,-1.51109,-1.26127,-2.65428,-0.00321,0.03016,0.66619,-0.52638,-0.01265,-0.40096,-0.48499,1.63879,0.32176,-0.32386,0.49625,-2.11855,3.23892,3.52623,0.80215,-0.06498,0.54005,0.03838,0.80706,-1.16943,-0.35271,0.56793,0.65464,0.45165,-1.78917,-0.63872,0.33357,0.43694,-0.60743,0.29985,0.02588,0.65951,1.389,0.56195,1.38546,-0.49377,0.0403,0.89421,-1.21196,-0.04951,-1.59804,-0.79849,-0.92989,2.24092,-0.75648,-1.39192,-0.61799,0.7003,-0.6767,-0.00063,0.60589,1.29772,-0.18721,-0.62715,0.81492,0.19211,1.50553,0.115,-0.24712,0.07681,0.41844,-0.10205,-0.0408,-0.96859,1.32791,0.22226,0.4339,0.36641,-0.3667,0.94192,2.19905,0.3999,-1.81752,-0.09505,0.45715,0.62075,0.38444,0.98301,0.72589,0.71134,1.9567,-1.08377,0.28372,-1.09855,-0.35854,0.01391,-0.06671,-0.08411,0.53592,-2.42614,0.2704,0.31241,0.78444,0.39118,-0.16222,-0.61939,0.99315,0.48884,0.05914,0.51442,-1.03094,0.04265,-0.36588,0.08936,0.11499,-0.87741,-3.67322,0.90005,0.16532,0.62557,-0.29741,0.66999,0.07338,0.02441,0.36414,-0.18731,-0.20997,0.6974,-1.84778,-0.80119,-1.89335,-0.48803,-0.53803,-0.01637,0.42224,0.5252,-0.34796,-0.48017,0.76544,-0.19326,0.6901,-0.55161,-3.23736,0.2153,0.93986,0.64087,-0.2916,0.45449,-0.82348,0.00787,-0.26231,0.59779,-0.23891,-0.34962,0.80001,-0.4963,0.3608,0.06122,-2.65365,-0.4452,-1.09682,0.86149,0.00438,-0.50018,-0.46453,-0.43413,1.42331,0.21513,0.19705,1.77654,-0.32698,-0.76664,0.02281,0.27972,0.53304,-1.1431,-0.90918,1.28563,0.43765,0.86571,-0.62397,0.34269,2.17678,-0.24507,0.42651,-1.0366,-1.31657,-0.03515,0.8075,-0.73601,-0.30735,0.2067,0.05917,0.64524,0.07612,0.24447,1.05509,1.48208,-0.16715,-0.51052,0.10871,-0.08064,-0.30893,-0.64369,-0.59188,-0.77864,1.26663,-0.00773,0.08161,-0.63305,0.3255,0.1391,0.17007,0.79786,-0.66278,1.4021,0.40698,-0.00193,-0.1382,-0.12155,0.20219,1.27875,0.54699,-0.20737,-0.42924,-0.02308,0.56897,0.87868,-1.72646,0.6654,0.40303,0.84559,0.69247,-0.89572,0.32578,1.65015,0.848,0.03386,0.47473,-0.09599,0.68494,-3.56784,-0.71579,2.7643,0.42836,-0.39815,-2.16274,0.24169,-1.23009,-0.21261,1.00404,0.05066,0.25799,-2.28973,-0.53456,1.25906,0.05614,-4.21957,0.55436,0.76434,0.04379,-0.34731,-0.14362,1.18468,0.99575,-1.67004,-0.21537,-1.44705,1.19571,-0.13683,0.12555,-1.89425,0.11919,0.26359,-1.80649,-0.61222,-0.1119,0.15154,-0.27533,-0.40919,-0.73853,-1.50582,-1.66576,-0.51778,-0.24449,0.71475,0.50686,-0.65674,1.38139,-3.24198,-1.63235,-1.75772,-0.41547,0.37607,-0.66841,-0.80738,0.9625,0.12651,0.50012,-1.9592,0.35015,-0.34523,-0.09713,-0.05978,-0.7661,0.42211,-0.48317,0.83261,-1.00551,-0.06532,0.01558,-1.76409,-0.66652,0.99827,1.19261,0.95267,1.21562,-1.39259,0.896,-0.07748,-0.04158,2.22485,-0.7171,1.62877,-0.23434,1.49298,0.51924,1.1974,1.12219,-0.66674,0.31896,0.99482,0.64985,-1.65674,-0.20775,-2.00788,-1.23391,-1.30563,0.04317,-1.48733,-0.96283,0.81725,0.63873,0.03911,0.26467,-0.19991,0.37981,0.62205,-0.38994,-0.30904,0.9229,0.04983,-1.34598,-0.09501,0.1627,0.49413,0.50597,0.16417,-2.72431,0.71516,0.40114,1.24914,-0.41902,-0.7361,0.59145,0.5875,5.09114,2.65441,1.45023,1.80703,0.47992,-0.01097,-0.47612,-0.1725,0.29796,0.26103,0.52283,1.06539,0.1191,0.35314,-0.2757,0.06861,-0.28934,0.35459,0.77456,0.00454,0.52258,0.21176,-0.14182,0.84725,-0.56187,0.51757,-1.07772,0.66706,0.46334,0.0575,0.13944,-0.0217,0.39662,-1.10889,-0.38965,-0.48577,0.27463,0.33794,-0.01828,1.30569,-0.64741,-0.18806,-0.63917,0.81019,0.60481,-0.80132,1.17178,1.77503,-2.27975,-0.49592,-0.48218,-1.02497,-3.2129,-0.15134,0.5982,0.40741,0.12674,-5.01214,-4.51035,-0.00937,0.3496,-0.09138,-0.0669,1.22449,-0.19548,1.0799,0.15151,0.44005,-1.71242,-0.30761,-0.7375,0.36103,-1.33945,1.01488,-0.09688,2.21497,0.41877,-0.22373,0.44712,1.05969,-2.81442,-0.26893,-0.46659,-1.84089,-0.10588,-0.40223,1.22982,0.30549,0.75024,0.54826,0.53051,-2.14259,-0.40936,-0.02921,0.08248,0.19923,-0.97192,0.14592,1.29727,0.62014,0.31324,-0.1025,-0.12199,0.42306,0.3001,-2.23887,0.53376,0.23224,-0.54793,-0.10569,0.3998,-1.28076,-0.16342,-1.09852,-0.00236,0.83095,0.29698,-0.43585,-0.55414,-0.84557,-1.03603,-1.67335,-0.7301,-0.17664,-0.16938,0.17032,0.52709,-0.43824,0.12995,0.1452,0.23278,0.50279,1.03314,0.96066,-0.13481,0.41939,-0.5615,0.21609,0.46219,0.66279,-0.11151,0.23731,-0.43834,-0.23646,0.68604,0.40728,-0.13891,0.02088,-0.36159,-0.20793,0.33759,-0.44989,0.32345,-0.12186,-0.77966,1.45496,0.846,1.10076,0.07198,0.24259,-0.85968,0.61772,0.06014,0.18355,0.08428,0.86875,-1.00291,0.62014,-0.70677,2.84528,0.27158,0.41479,-0.23628,-0.04828,-0.32022,-0.29869,0.87473,-0.03598,-1.21299,-0.1265,0.17842,-0.73306,0.7652,0.01387,0.52771,0.87993,2.26565,0.8717,0.05028,0.03505,0.57322,0.33291,-2.02612,-0.0249,0.74293,0.79354,0.39758,0.51077,0.24482,1.57522,2.37913,0.44593,0.2882,-2.44452,0.1,0.17502,0.14954,2.46785,0.16961,-0.90913,-0.22238,0.60002,0.511,-0.0747,1.5606,0.28899,0.37032,1.43593,0.52923,-0.2535,-0.79333,-0.64825,-0.21402,0.2016,-0.90614,1.35367,1.44929,0.39703,0.03995,0.3728,0.66028,0.13756,-0.55279,-1.59989,-1.18972,-0.4527,-1.12316,-0.59451,-0.22549,-0.41041,-0.22487,-0.23448,-0.32462,-0.58755,-0.68883,0.04255,-0.49804,-0.84187,-1.31069,0.384,-0.60192,1.29809,0.1847,0.82,0.41183,0.66586,-1.09088,-0.52899,0.15754,-0.39073,0.30858,0.37771,0.4628,0.22032,1.65691,-3.66401,1.43574,0.63678,0.19579,0.33402,-0.69608,-0.28388,-0.37606,0.74934,0.26432,0.40371,0.12567,-0.57714,-0.3274,-0.14794,1.13647,0.35917,0.02046,-0.09741,0.65182,0.82241,-0.20813,-0.35272,0.93285,-0.5552,0.16124,0.42422,0.44335,0.32846,-0.62864,-0.08224,-1.6427,-0.40182,-1.46899,0.31234,0.86784,-0.14433,-0.63816,-0.20339,0.33015,-0.34525,0.36561,-0.72999,-2.13324,0.1246,-1.00401,-0.57206,0.17232,-0.62569,0.57201,0.21304,-1.32378,0.48058,-1.37164,0.62174,1.34288,-0.5387,-3.3317,-0.96966,-1.34367,0.97145,-0.03357,-0.94012,-0.07849,0.0256,-0.28804,1.37271,0.08419,-0.58017,-0.84063,0.3919,-0.51043,-0.67074,0.19468,0.18984,-0.49453,-1.05792,0.71408,-1.09903,0.39138,-1.59941,0.06146,0.42696,-0.71646,-1.10566,-3.19973,-0.6513,-0.78607,0.06118,1.28643,0.88289,0.93824,-0.2613,-1.37616,-0.50136,0.02379,-1.00184,1.96022,0.48154,-0.05594,0.50016,-0.36011,-1.54194,-0.57432,-2.10283,1.91598,0.92204,0.52453,-1.15,-0.00369,-0.91691,0.26791,-0.56985,1.34067,1.24301,-0.81379,-0.54698,0.54923,0.47905,0.26392,1.52726,0.16055,-1.22737,-0.08411,-0.44934,-0.42227,-0.14092,-0.4267,-0.09552,-0.03822,0.0265,0.51913,0.85091,-0.98467,-0.23779,-0.11893,-0.06129,-0.02338,-0.94372,-1.37452,0.59455,0.93284,0.84739,0.63608,-0.22158,0.44266,-0.37665,-0.12407,0.61959,0.0996,-1.19416,0.16902,0.27758,0.78513,0.56914,-0.59835,-0.9964,0.3348,0.28705,0.79216,-0.39433,0.16109,1.00987,2.23991,-0.36749,-0.32806,0.52194,0.65856,1.07534,-0.10679,-0.49699,-0.45928,0.16747,-2.07729,0.81761,0.96826,2.72511,-1.28389,0.06451,0.74203,0.78301,0.025,-0.52967,0.38349,-0.6575,0.12153,0.63951,0.34202,0.72098,-0.50128,-0.38845,0.32991,-0.6288,0.69109,-0.03051,0.08565,0.90706,-0.30613,0.27092,-1.53998,0.70833,0.107,-0.1829,-0.14691,-0.9756,-0.3401,0.45698,-1.7453,0.8591,0.91302,0.60077,0.54644,0.68944,-0.54337,-1.13264,0.07234,1.07526,0.35177,-0.26563,0.42804,-0.85142,2.21629,-0.12439,-0.86878,-0.97849,-2.03481,-1.18038,1.42169,1.16239,-0.70928,-0.03302,0.0531,-0.85728,0.71863,-2.29479,-0.622,0.41446,-0.42365,-0.03609,-0.55543,-0.39155,1.4793,-0.43152,0.38575,-0.19978,0.04549,0.00248,-0.35286,-0.38587,-0.11552,0.53591,1.42061,0.07255,-0.03559,-0.81511,-0.81842,-0.88004,0.87102,-0.04188,0.34121,0.00631,0.02495,0.00135,-0.21546,0.53412,1.12603,0.48878,-0.14739,0.87315,-0.10664,-0.66964,-0.00979,1.17036,1.0381,0.68131,-0.41472,0.1733,0.57472,-0.24474,-0.90556,-0.3518,0.0338,-1.22071,-0.38025,0.15307,0.36981,0.37471,-0.00733,-1.57743,-0.25468,0.80975,-0.09271,1.31049,0.20343,-0.50765,-0.74056,-1.06723,0.25157,-0.31621,1.46296,-0.85676,2.71092,-0.78231,-0.2417,-0.62045,0.5872,0.41131,-0.12103,0.25805,-0.44368,0.00015,1.03684,-1.06635,0.05371,-0.31702,0.19099,-0.01963,0.63835,0.44676,0.86588,2.18562,0.1764,-0.3566,0.40802,-0.87427,-0.68352,-0.45564,-0.13335,0.94169,0.79601,0.17892,-0.06281,1.38243,-3.53739,-1.55271,0.32753,0.42686,-1.13575,-0.38256,-0.95883,1.65398,2.35316,1.07874,0.96502,0.1279,-0.20947,-0.62346,-0.64117,-1.2294,-1.4968,0.35931,-0.68473,0.0067,-0.31757,-0.65493,0.13932,0.24908,-0.26449,0.62127,-0.13145,-0.16647,0.41272,1.03375,0.24083,3.36014,0.87128,0.23776,0.01302,-0.34071,0.13377,-0.87211,-3.48105,-1.54206,0.70589,-0.81994,0.00454,1.02589,2.69932,0.64468,1.09324,2.2965,0.75586,0.70709,-0.72954,0.29644,0.86233,1.06417,0.42819,1.84466,-0.02576,0.67118,0.03043,0.38325,0.18104,0.43614,0.54075,0.49907,0.30436,0.87626,-0.58087,-0.52686,-0.82782,0.68176,-0.41004,-0.75699,-0.43471,0.89967,-0.18061,0.23201,0.09571,-0.18396,0.45847,-0.32223,0.49333,1.68186,0.07981,-0.57608,0.46321,0.28151,-2.11141,-0.68152,0.10298,0.1674,0.11102,-0.05175,-0.65713,0.20095,0.19753,-0.12023,1.33401,-0.44396,0.88347,0.01959,-0.35189,0.42976,-4.56485,-1.09886,2.03564,0.14172,0.04275,-0.15257,0.30973,-0.11288,0.9122,0.70754,1.43582,-0.14486,-0.91264,-0.00981,-0.93094,0.04044,-0.59886,0.1388,0.19257,-0.06193,0.5405,1.32223,0.44658,-1.50357,-0.0174,-1.15867,-0.45128,-0.03251,-1.06453,0.33405,-1.55526,-1.11489,1.07308,1.30639,-0.75198,-0.70262,-0.26243,-1.1368,-0.06461,0.73312,0.80071,1.32664,1.12275,0.31589,-0.93285,0.97063,-0.74585,1.12056,-0.69209,-0.60296,-0.59513,-0.68494,0.58611,1.70376,-0.05122,-0.3952,1.02679,1.66117,1.01783,0.12229,-1.02418,0.29404,-0.17682,-0.57147,-1.19467,3.69044,1.21432,0.48691,-0.16919,0.39532,1.6202,-1.31393,0.3386,1.28888,-0.34813,-0.66211,-1.37775,-0.16585,0.49337,0.99059,0.6794,2.30403,0.66421,-0.08727,0.36935,0.48903,-0.04752,-0.38288,0.09663,-0.02489,0.99887,0.61441,1.28034,0.41037,-0.34722,0.21453,0.02421,-1.18086,0.73642,0.3062,1.42744,-0.33878,-0.44349,-0.86815,0.51879,0.0597,-1.02164,-2.3598,0.75877,0.16303,-0.46047,-0.52542,2.30314,1.25094,0.69511,0.11165,-0.81029,-1.68374,-2.00924,-0.5831,-0.67275,-0.35119,0.16157,-0.36828,0.08416,0.3419,0.23173,0.79129,1.3067,0.43923,0.67035,-0.45076,0.20649,-1.777,-0.06403,0.94795,-0.33396,-0.62328,-1.03183,-1.71176,0.3123,-2.07858,0.10678,0.31693,1.79891,0.82322,0.33969,0.34853,1.53563,-0.62372,-4.13925,-2.79641,-2.08137,2.18252,-0.01965,-0.18869,0.2121,0.4286,-2.92892,1.45311,0.10947,-0.94111,-1.34283,0.83964,1.46923,-0.02523,-0.60711,-0.30608,-0.15126,0.91014,0.85915,0.20503,-0.55676,-0.08412,0.38265,-0.27595,0.1189,-0.31896,-1.05082,-0.63253,-0.03932,-1.25805,-0.33072,-1.16759,-1.08784,-0.98752,0.63186,0.27179,0.12335,-0.64334,-0.36384,0.95365,2.55575,-0.16321,1.6474,-0.01219,-0.48285,-1.184,1.0093,1.16817,-0.4406,-0.26044,0.40246,-0.18958,0.37836,0.26326,1.16227,-0.15327,-0.36082,-1.01023,0.54618,0.18022,0.17871,-0.49165,0.53333,0.01877,0.00507,0.18124,0.64766,0.25589,-0.08246,0.38723,-0.00285,0.66168,0.02427,0.07361,-1.12125,-1.39585,-0.30076,0.25453,0.64396,0.52875,-0.74226,-0.74268,-0.69152,0.09715,-0.01264,0.92181,1.04398,-0.30698,0.06299,-0.32323,0.34344,-1.94341,0.10105,-1.24855,-6.40062,-2.54955,1.07277,-1.22191,-0.23844,-0.89094,0.27519,0.52527,0.60953,0.16559,1.39432,0.04054,-2.73513,0.16336,-0.07858,-0.72127,-0.58844,-0.14082,0.57795,-0.74385,0.57974,0.77012,0.45228,3.42673,0.72967,-0.18182,-1.51996,-0.40897,-1.11342,-0.03016,0.08095,-0.40396,0.57297,-0.82679,-1.13414,0.66563,-0.01501,-0.1806,0.13577,-0.07529,0.85061,0.4276,0.28806,0.82943,-0.21594,-0.62408,-0.11458,-0.06615,-1.81692,-0.06415,-0.1338,0.11709,1.92156,-0.11556,0.46246,0.5735,0.14851,0.31925,0.5639,0.24104,0.09341,0.88573,0.84433,-0.16744,0.58142,0.78736,0.20357,0.43631,0.32416,0.55943,0.97401,-0.25298,1.15886,-0.94833,-0.76305,0.521,-2.53519,4.43724,2.90529,-0.27888,-0.87536,-2.48509,-0.1989,-0.07467,-0.70869,0.46554,0.33756,-0.47162,0.09367,0.14396,1.55451,2.12148,-4.3988,-9.15282,1.88245,0.15875,-0.58925,-1.88968,-1.30031,-0.44718,-1.26756,-0.57652,-0.96925,-1.27189,0.3814,-1.46296,-1.30283,-0.09743,-0.83258,-0.16462,1.30596,0.56502,0.71933,0.20448,2.47308,0.68063,-0.47982,-0.43513,-0.35659,-0.03275,-0.50695,-0.42732,-0.97121],"b":-0.12063}</script>
 <script>
-  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
-  var i = 0, bar = document.getElementById('bar');
-  function show(n){
-    i = Math.max(0, Math.min(slides.length-1, n));
-    slides.forEach(function(s,k){ s.classList.toggle('active', k===i); });
-    bar.style.width = ((i)/(slides.length-1)*100) + '%';
-    if(location.hash !== '#'+(i+1)) history.replaceState(null,'','#'+(i+1));
+/* ============ deck navigation ============ */
+var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+var i = 0, bar = document.getElementById('bar');
+function show(n){
+  i = Math.max(0, Math.min(slides.length-1, n));
+  slides.forEach(function(s,k){ s.classList.toggle('active', k===i); });
+  bar.style.width = ((i)/(slides.length-1)*100) + '%';
+  if(location.hash !== '#'+(i+1)) history.replaceState(null,'','#'+(i+1));
+  if(i===0) heroStart(); else heroStop();
+  if(slides[i].id==='s4') lifecycleRun();
+}
+document.addEventListener('keydown', function(e){
+  if(e.target.tagName==='TEXTAREA') return;
+  if(['ArrowRight','PageDown',' ','Enter'].indexOf(e.key)>-1){ e.preventDefault(); show(i+1); }
+  else if(['ArrowLeft','PageUp'].indexOf(e.key)>-1){ e.preventDefault(); show(i-1); }
+  else if(e.key==='Home'){ show(0); } else if(e.key==='End'){ show(slides.length-1); }
+});
+document.addEventListener('click', function(e){
+  if(e.target.closest('a,button,textarea,input,.ui,.demo')) return;
+  show(i + (e.clientX > window.innerWidth*0.35 ? 1 : -1));
+});
+
+var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ============ hero animation ============ */
+var REVIEWS = [
+  {t:"Charged twice, cancelling today!!!", lane:0},
+  {t:"The pacing dragged in act two.", lane:1},
+  {t:"Wonderful film, loved every minute!", lane:2},
+  {t:"I want a REFUND. This is a scam.", lane:0},
+  {t:"Decent, but the ending felt rushed.", lane:1},
+  {t:"Brilliant cast, great soundtrack.", lane:2},
+  {t:"Billing error AGAIN. Never again.", lane:0},
+  {t:"Solid movie, would recommend.", lane:2}
+];
+var heroTimer=null, hIdx=0;
+function heroStart(){
+  if(reduce || heroTimer) return;
+  heroTimer = setInterval(function(){
+    var viz = document.getElementById('viz'); if(!viz) return;
+    var r = REVIEWS[hIdx % REVIEWS.length]; hIdx++;
+    var el = document.createElement('div');
+    el.className='rvcard'; el.textContent=r.t;
+    el.style.top = (12 + Math.random()*72) + '%';
+    viz.appendChild(el);
+    setTimeout(function(){
+      var lane = document.getElementById('ol'+r.lane);
+      if(lane){ lane.classList.add('lit'); setTimeout(function(){ lane.classList.remove('lit'); }, 700); }
+    }, 2600);
+    setTimeout(function(){ el.remove(); }, 6200);
+  }, 1100);
+}
+function heroStop(){ if(heroTimer){ clearInterval(heroTimer); heroTimer=null; } }
+
+/* count-up stats */
+function countUp(){
+  document.querySelectorAll('[data-count]').forEach(function(el){
+    var target = parseFloat(el.dataset.count), dec = parseInt(el.dataset.dec||0), suf = el.dataset.suf||'';
+    if(reduce){ el.textContent = target.toFixed(dec)+suf; return; }
+    var start = performance.now(), dur = 1400;
+    function tick(now){
+      var p = Math.min(1,(now-start)/dur), e = 1-Math.pow(1-p,3);
+      el.textContent = (target*e).toFixed(dec)+suf;
+      if(p<1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  });
+}
+
+/* lifecycle stagger */
+var lcDone=false;
+function lifecycleRun(){
+  if(lcDone||reduce) return; lcDone=true;
+  document.querySelectorAll('#lifecycle .lc').forEach(function(n,k){
+    n.style.opacity=0; n.style.transform='translateY(10px)';
+    setTimeout(function(){
+      n.style.transition='all .4s cubic-bezier(.4,0,.2,1)';
+      n.style.opacity=1; n.style.transform='translateY(0)';
+      n.style.borderColor='#818cf8';
+      setTimeout(function(){ n.style.borderColor=''; }, 500);
+    }, k*110);
+  });
+}
+
+/* ============ LIVE DEMO — real logistic regression in the browser ============ */
+var M = JSON.parse(document.getElementById('demoModel').textContent);
+var VOCAB = {}; M.w.forEach(function(w,k){ VOCAB[w]=k; });
+
+function sentiment(text){
+  var toks = (text.toLowerCase().match(/\b\w\w+\b/g)||[]);
+  var counts = {};
+  toks.forEach(function(t){ if(t in VOCAB) counts[t]=(counts[t]||0)+1; });
+  var vals = {}, sum2 = 0;
+  for(var t in counts){
+    var idx = VOCAB[t];
+    var v = (1 + Math.log(counts[t])) * M.i[idx];   // sublinear tf × idf
+    vals[idx] = v; sum2 += v*v;
   }
-  document.addEventListener('keydown', function(e){
-    if(['ArrowRight','PageDown',' ','Enter'].indexOf(e.key)>-1){ e.preventDefault(); show(i+1); }
-    else if(['ArrowLeft','PageUp'].indexOf(e.key)>-1){ e.preventDefault(); show(i-1); }
-    else if(e.key==='Home'){ show(0); }
-    else if(e.key==='End'){ show(slides.length-1); }
+  var norm = Math.sqrt(sum2) || 1;                  // L2 normalize
+  var z = M.b, contrib = [];
+  for(var idx in vals){
+    var x = vals[idx]/norm, c = M.c[idx];
+    z += x*c;
+    contrib.push({w:M.w[idx], v:x*c});
+  }
+  var pPos = 1/(1+Math.exp(-z));
+  contrib.sort(function(a,b){ return Math.abs(b.v)-Math.abs(a.v); });
+  return {p: 1-pPos, top: contrib.slice(0,9)};
+}
+
+/* line-for-line port of src/urgency.py */
+var CHURN=["cancel","cancelling","canceled","cancellation","refund","money back","never again","never use",
+  "switching to","switch to","deleting my account","delete my account","unsubscribe","last time","done with"];
+var MONEY=["charged","double charge","billing","billed","overcharged","payment","credit card","took my money","stole"];
+var ANGER=["furious","outraged","unacceptable","disgusting","scam","fraud","worst","terrible","horrible","awful","rip off","ripoff"];
+var W={churn:.45, money:.30, anger:.15, intensity:.10};
+
+function urgency(text){
+  var low = text.toLowerCase();
+  var hit = function(list){ return list.filter(function(p){ return low.indexOf(p)>-1; }); };
+  var ch=hit(CHURN), mo=hit(MONEY), an=hit(ANGER);
+  var ex=(text.match(/!/g)||[]).length;
+  var words=(text.match(/[A-Za-z]{3,}/g)||[]);
+  var caps=words.filter(function(w){ return w===w.toUpperCase(); });
+  var capsRatio = words.length ? caps.length/words.length : 0;
+  var intensity = Math.min(1, ex/3*0.5 + capsRatio*5*0.5);
+  var s = W.churn*Math.min(1,ch.length) + W.money*Math.min(1,mo.length)
+        + W.anger*Math.min(1,an.length/2) + W.intensity*intensity;
+  return {score: Math.min(1, Math.round(s*1000)/1000), churn:ch, money:mo, anger:an, intensity:intensity};
+}
+function route(p,u){ if(p<0.5) return "analytics"; return u>=0.4 ? "support_urgent" : "feedback_backlog"; }
+
+var ROUTES = {
+  support_urgent:  {t:"😠 SUPPORT — NOW",       bg:"#fee2e2", bd:"#dc2626", fg:"#b91c1c"},
+  feedback_backlog:{t:"📋 FEEDBACK BACKLOG",    bg:"#fef3c7", bd:"#d97706", fg:"#b45309"},
+  analytics:       {t:"📊 ANALYTICS",           bg:"#dcfce7", bd:"#16a34a", fg:"#15803d"}
+};
+var EX = {
+  angry:"Absolutely terrible. I was charged twice for a broken stream and support ignored me. I want a REFUND — cancelling today!!!",
+  calm:"The pacing dragged in the second act and the ending felt rushed, though the cinematography was decent and the score was pleasant.",
+  happy:"Wonderful film! Great cast, beautiful soundtrack, and a perfect ending. I loved every minute of it.",
+  billing:"This is a SCAM. You billed my credit card twice, nobody replies, and I am done with this service. Refund me or I am switching to a competitor."
+};
+
+function runDemo(){
+  var text = document.getElementById('dtext').value;
+  var s = sentiment(text), u = urgency(text), r = route(s.p, u.score);
+
+  document.getElementById('dpv').textContent = s.p.toFixed(3);
+  document.getElementById('duv').textContent = u.score.toFixed(3);
+  document.getElementById('dpm').style.width = (s.p*100)+'%';
+  document.getElementById('dum').style.width = (u.score*100)+'%';
+
+  var sig=[];
+  u.churn.forEach(function(w){ sig.push('<span class="sig">churn: '+w+'</span>'); });
+  u.money.forEach(function(w){ sig.push('<span class="sig">money: '+w+'</span>'); });
+  u.anger.forEach(function(w){ sig.push('<span class="sig">anger: '+w+'</span>'); });
+  if(u.intensity>0) sig.push('<span class="sig w">shouting: '+u.intensity.toFixed(2)+'</span>');
+  document.getElementById('dsig').innerHTML = sig.length ? sig.join('') : '<span style="color:#94a3b8">no urgency signals — calm text</span>';
+
+  document.getElementById('dwords').innerHTML = s.top.length
+    ? s.top.map(function(c){
+        return '<span class="wtag '+(c.v<0?'neg':'pos')+'">'+c.w+' '+(c.v<0?'':'+')+c.v.toFixed(2)+'</span>';
+      }).join('')
+    : '<span style="color:#94a3b8">no known words</span>';
+
+  var R = ROUTES[r], el = document.getElementById('droute');
+  el.textContent = R.t; el.style.background=R.bg; el.style.borderColor=R.bd; el.style.color=R.fg;
+}
+document.getElementById('dtext').addEventListener('input', runDemo);
+document.querySelectorAll('.exbtn').forEach(function(b){
+  b.addEventListener('click', function(){
+    document.getElementById('dtext').value = EX[b.dataset.ex];
+    runDemo();
   });
-  document.addEventListener('click', function(e){
-    if(e.target.closest('a')) return;
-    show(i + (e.clientX > window.innerWidth*0.35 ? 1 : -1));
-  });
-  var start = parseInt((location.hash||'#1').slice(1),10);
-  show(isNaN(start)?0:start-1);
+});
+
+/* boot */
+var start = parseInt((location.hash||'#1').slice(1),10);
+show(isNaN(start)?0:start-1);
+countUp(); runDemo();
 </script>
