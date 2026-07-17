@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>review-radar — live</title>
+<style>
+  :root{
+    --bg:#07080c;
+    --bg2:#0a0c12;
+    --glass:rgba(255,255,255,.038);
+    --glass2:rgba(255,255,255,.055);
+    --line:rgba(255,255,255,.09);
+    --line2:rgba(255,255,255,.14);
+    --ink:#f2f4f8;
+    --ink2:#a8b0c0;
+    --muted:#6b7382;
+    --faint:#454c59;
+
+    --urgent:#ff3b47;
+    --urgent2:#ff8a5c;
+    --backlog:#f5a524;
+    --analytics:#3ba9a0;
+
+    --neg:#ff4d5e;
+    --urg:#ffa23b;
+
+    --r:16px;
+    --ease:cubic-bezier(.22,1,.36,1);
+    --spring:cubic-bezier(.34,1.56,.64,1);
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:"SF Mono",SFMono-Regular,ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:var(--sans);
+    background:var(--bg);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+
+  /* ── ambient background ───────────────────────────── */
+  .aura{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+  .aura::before,.aura::after{
+    content:"";position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;
+  }
+  .aura::before{
+    width:60vw;height:60vw;top:-24vw;left:-16vw;
+    background:radial-gradient(circle,rgba(255,59,71,.13),transparent 68%);
+    animation:drift1 26s var(--ease) infinite alternate;
+  }
+  .aura::after{
+    width:52vw;height:52vw;bottom:-22vw;right:-14vw;
+    background:radial-gradient(circle,rgba(59,169,160,.12),transparent 68%);
+    animation:drift2 32s var(--ease) infinite alternate;
+  }
+  @keyframes drift1{to{transform:translate3d(7vw,5vh,0) scale(1.14)}}
+  @keyframes drift2{to{transform:translate3d(-6vw,-5vh,0) scale(1.1)}}
+  .grain{
+    position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.16;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+  }
+
+  .shell{position:relative;z-index:2;max-width:1220px;margin:0 auto;padding:26px 24px 72px}
+
+  /* ── header ───────────────────────────────────────── */
+  header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:34px}
+  .brand{display:flex;align-items:baseline;gap:11px;min-width:0}
+  .mark{
+    font-size:19px;font-weight:680;letter-spacing:-.033em;
+    background:linear-gradient(96deg,#fff 12%,#9aa4b8 96%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    white-space:nowrap;
+  }
+  .brand .sep{width:1px;height:13px;background:var(--line2);flex:none}
+  .brand .sub{font-size:12.5px;color:var(--muted);letter-spacing:.01em;white-space:nowrap}
+
+  .status{
+    display:flex;align-items:center;gap:8px;flex:none;
+    font-size:11.5px;font-weight:560;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--muted);
+    padding:7px 13px;border-radius:999px;
+    background:var(--glass);border:1px solid var(--line);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  }
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--faint);flex:none;transition:background .4s}
+  .status[data-s="ok"]{color:#7fd6c4}
+  .status[data-s="ok"] .dot{background:var(--analytics);box-shadow:0 0 0 0 rgba(59,169,160,.6);animation:pulse 2.6s infinite}
+  .status[data-s="down"]{color:#ff8e97}
+  .status[data-s="down"] .dot{background:var(--urgent)}
+  @keyframes pulse{70%{box-shadow:0 0 0 7px rgba(59,169,160,0)}100%{box-shadow:0 0 0 0 rgba(59,169,160,0)}}
+
+  /* ── hero ─────────────────────────────────────────── */
+  .hero{margin-bottom:30px;max-width:660px}
+  h1{
+    font-size:clamp(30px,5.2vw,46px);line-height:1.04;letter-spacing:-.035em;
+    font-weight:700;margin:0 0 14px;
+  }
+  h1 .g{
+    background:linear-gradient(94deg,#fff 20%,#8e97ab 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  h1 .em{
+    background:linear-gradient(94deg,var(--urgent) 0%,var(--urgent2) 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .lede{font-size:16px;line-height:1.58;color:var(--ink2);margin:0;max-width:600px}
+  .lede code{
+    font-family:var(--mono);font-size:13px;color:#cfd5e2;
+    background:var(--glass2);border:1px solid var(--line);
+    padding:1.5px 6px;border-radius:5px;
+  }
+
+  /* ── layout ───────────────────────────────────────── */
+  .grid{display:grid;grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr);gap:20px;align-items:start}
+
+  .panel{
+    background:linear-gradient(168deg,var(--glass2),var(--glass));
+    border:1px solid var(--line);
+    border-radius:var(--r);
+    backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+    box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 22px 50px -22px rgba(0,0,0,.85);
+  }
+  .panel-pad{padding:20px}
+
+  .lbl{
+    font-size:10.5px;font-weight:640;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--muted);margin:0 0 12px;display:flex;align-items:center;gap:8px;
+  }
+  .lbl::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
+
+  /* ── composer ─────────────────────────────────────── */
+  textarea{
+    width:100%;min-height:132px;resize:vertical;
+    background:rgba(0,0,0,.34);
+    border:1px solid var(--line);border-radius:11px;
+    padding:14px 15px;
+    color:var(--ink);font-family:var(--sans);font-size:14.5px;line-height:1.6;
+    transition:border-color .28s,box-shadow .28s,background .28s;
+  }
+  textarea::placeholder{color:var(--faint)}
+  textarea:focus{
+    outline:none;border-color:rgba(255,77,94,.5);background:rgba(0,0,0,.44);
+    box-shadow:0 0 0 3.5px rgba(255,77,94,.1);
+  }
+
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin:13px 0 16px}
+  .chip{
+    font:inherit;font-size:12px;font-weight:520;
+    color:var(--ink2);background:var(--glass);
+    border:1px solid var(--line);border-radius:999px;
+    padding:6.5px 12px;cursor:pointer;
+    transition:transform .3s var(--spring),border-color .25s,color .25s,background .25s;
+  }
+  .chip:hover{color:#fff;border-color:var(--line2);background:var(--glass2);transform:translateY(-1.5px)}
+  .chip:active{transform:translateY(0)}
+  .chip:focus-visible{outline:2px solid rgba(255,255,255,.6);outline-offset:2px}
+
+  .row{display:flex;align-items:center;gap:12px}
+  .btn{
+    position:relative;flex:none;
+    font:inherit;font-size:14px;font-weight:600;letter-spacing:-.005em;
+    color:#fff;
+    background:linear-gradient(180deg,#ff4d5e,#e02234);
+    border:1px solid rgba(255,255,255,.16);
+    border-radius:10px;padding:11px 21px;cursor:pointer;
+    box-shadow:0 1px 0 rgba(255,255,255,.24) inset,0 9px 24px -9px rgba(255,59,71,.85);
+    transition:transform .12s var(--ease),box-shadow .3s,filter .25s;
+    overflow:hidden;
+  }
+  .btn::after{
+    content:"";position:absolute;inset:0;
+    background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.24) 50%,transparent 62%);
+    transform:translateX(-130%);
+  }
+  .btn:hover:not(:disabled)::after{transform:translateX(130%);transition:transform .78s var(--ease)}
+  .btn:hover:not(:disabled){box-shadow:0 1px 0 rgba(255,255,255,.24) inset,0 13px 32px -9px rgba(255,59,71,.95)}
+  .btn:active:not(:disabled){transform:scale(.975)}
+  .btn:disabled{filter:saturate(.25) brightness(.72);cursor:not-allowed}
+  .btn:focus-visible{outline:2px solid #fff;outline-offset:3px}
+  .hint{font-size:11.5px;color:var(--faint);letter-spacing:.01em}
+  kbd{
+    font-family:var(--mono);font-size:10.5px;color:var(--muted);
+    background:var(--glass2);border:1px solid var(--line);
+    border-bottom-width:2px;border-radius:4px;padding:1.5px 4.5px;
+  }
+
+  /* ── gauges ───────────────────────────────────────── */
+  .gauges{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+  .gauge{
+    background:linear-gradient(168deg,var(--glass2),var(--glass));
+    border:1px solid var(--line);border-radius:var(--r);
+    padding:16px 12px 14px;text-align:center;
+    backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+    box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 22px 50px -22px rgba(0,0,0,.85);
+  }
+  .gauge svg{width:100%;max-width:146px;height:auto;display:block;margin:0 auto}
+  .gtrack{fill:none;stroke:rgba(255,255,255,.07);stroke-width:8;stroke-linecap:round}
+  .gfill{
+    fill:none;stroke-width:8;stroke-linecap:round;
+    stroke-dasharray:245.04 326.73;
+    stroke-dashoffset:245.04;
+    transition:stroke-dashoffset 1.15s var(--ease);
+  }
+  .gauge text.val{
+    font-family:var(--sans);font-size:27px;font-weight:690;letter-spacing:-.04em;
+    fill:var(--ink);text-anchor:middle;
+  }
+  .gauge text.unit{
+    font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:.1em;
+    fill:var(--faint);text-anchor:middle;
+  }
+  .gname{font-size:12px;font-weight:600;color:var(--ink2);margin-top:2px;letter-spacing:-.005em}
+  .gsub{font-size:10.5px;color:var(--faint);margin-top:3px;line-height:1.4}
+  .gsub b{color:var(--muted);font-weight:600}
+
+  /* ── route reveal ─────────────────────────────────── */
+  .route{
+    position:relative;overflow:hidden;
+    border-radius:var(--r);border:1px solid var(--line);
+    padding:19px 20px;margin-bottom:12px;
+    background:linear-gradient(168deg,var(--glass2),var(--glass));
+    backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+    transition:border-color .55s var(--ease),box-shadow .55s var(--ease);
+  }
+  .route::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:2.5px;
+    background:var(--rc,var(--faint));
+    transform:scaleY(0);transform-origin:top;
+    transition:transform .7s var(--ease),background .5s;
+  }
+  .route.on::before{transform:scaleY(1)}
+  .route.on{border-color:var(--rc-dim,var(--line));box-shadow:0 0 44px -14px var(--rc-glow,transparent)}
+  .route .rlbl{font-size:10.5px;font-weight:640;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+  .rname{
+    font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-.02em;
+    color:var(--rc,var(--ink2));margin:0;line-height:1.2;
+    transition:color .5s;
+  }
+  .rwhy{font-size:12.5px;color:var(--ink2);margin:8px 0 0;line-height:1.55}
+  .rwhy code{font-family:var(--mono);font-size:11.5px;color:#cfd5e2;background:rgba(0,0,0,.4);padding:1.5px 5px;border-radius:4px;border:1px solid var(--line)}
+
+  .route[data-r="support_urgent"]{--rc:var(--urgent);--rc-dim:rgba(255,59,71,.4);--rc-glow:rgba(255,59,71,.45)}
+  .route[data-r="feedback_backlog"]{--rc:var(--backlog);--rc-dim:rgba(245,165,36,.35);--rc-glow:rgba(245,165,36,.32)}
+  .route[data-r="analytics"]{--rc:var(--analytics);--rc-dim:rgba(59,169,160,.33);--rc-glow:rgba(59,169,160,.28)}
+
+  /* ── decision map ─────────────────────────────────── */
+  .map svg{width:100%;height:auto;display:block;overflow:visible}
+  .zone{transition:opacity .5s var(--ease)}
+  .zone.dim{opacity:.3}
+  .zline{stroke:rgba(255,255,255,.2);stroke-width:1;stroke-dasharray:2.5 3.5}
+  .axis{stroke:rgba(255,255,255,.16);stroke-width:1}
+  .atick{font-family:var(--mono);font-size:7.5px;fill:var(--faint)}
+  .aname{font-family:var(--sans);font-size:8.5px;font-weight:620;letter-spacing:.09em;fill:var(--muted);text-transform:uppercase}
+  .zname{font-family:var(--mono);font-size:8px;font-weight:600;letter-spacing:.02em}
+  .pt{transition:transform 1.15s var(--spring),opacity .5s}
+  .pt-halo{transform-box:fill-box;transform-origin:center}
+  .pt.hidden{opacity:0}
+
+  /* ── evidence ─────────────────────────────────────── */
+  .ev{display:flex;flex-direction:column;gap:11px}
+  .evrow{display:flex;align-items:flex-start;gap:11px;min-height:24px}
+  .evk{
+    flex:none;width:78px;padding-top:4px;
+    font-size:10.5px;font-weight:620;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);
+  }
+  .evv{display:flex;flex-wrap:wrap;gap:5.5px;flex:1;min-width:0;align-items:center}
+  .tag{
+    font-family:var(--mono);font-size:11.5px;font-weight:500;
+    padding:4px 9px;border-radius:6px;
+    background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--ink2);
+    animation:tagin .5s var(--spring) both;
+  }
+  .tag.churn{color:#ff9aa3;background:rgba(255,59,71,.11);border-color:rgba(255,59,71,.28)}
+  .tag.money{color:#ffc978;background:rgba(245,165,36,.11);border-color:rgba(245,165,36,.28)}
+  .tag.anger{color:#ffb08a;background:rgba(255,138,92,.1);border-color:rgba(255,138,92,.26)}
+  @keyframes tagin{from{opacity:0;transform:translateY(6px) scale(.94)}to{opacity:1;transform:none}}
+  .none{font-size:12px;color:var(--faint);font-style:italic;padding-top:4px}
+
+  .meter{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.07);overflow:hidden;min-width:70px;margin-top:9px}
+  .meter i{
+    display:block;height:100%;width:0;border-radius:2px;
+    background:linear-gradient(90deg,var(--urg),var(--urgent2));
+    transition:width 1.05s var(--ease);
+  }
+  .mval{font-family:var(--mono);font-size:11.5px;color:var(--ink2);flex:none;padding-top:3px;min-width:38px;text-align:right}
+
+  /* ── footer meta ──────────────────────────────────── */
+  .meta{display:flex;align-items:center;gap:9px;margin-top:14px;flex-wrap:wrap}
+  .badge{
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:var(--mono);font-size:11px;color:var(--muted);
+    background:var(--glass);border:1px solid var(--line);
+    border-radius:999px;padding:5px 11px;
+  }
+  .badge b{color:var(--ink2);font-weight:600}
+
+  /* ── states ───────────────────────────────────────── */
+  .results{position:relative}
+  .veil{
+    position:absolute;inset:0;z-index:5;border-radius:var(--r);
+    background:rgba(7,8,12,.62);
+    backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;
+    opacity:0;pointer-events:none;transition:opacity .35s var(--ease);
+  }
+  .veil.on{opacity:1;pointer-events:auto}
+  .scan{display:flex;flex-direction:column;align-items:center;gap:13px}
+  .bars{display:flex;gap:4px;align-items:flex-end;height:26px}
+  .bars i{
+    width:3px;border-radius:2px;background:linear-gradient(180deg,var(--neg),var(--urg));
+    animation:bar 1.05s var(--ease) infinite;
+  }
+  .bars i:nth-child(1){animation-delay:0s}
+  .bars i:nth-child(2){animation-delay:.1s}
+  .bars i:nth-child(3){animation-delay:.2s}
+  .bars i:nth-child(4){animation-delay:.3s}
+  .bars i:nth-child(5){animation-delay:.4s}
+  @keyframes bar{0%,100%{height:7px;opacity:.45}50%{height:26px;opacity:1}}
+  .scan span{font-size:11.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);font-weight:560}
+
+  .err{
+    display:none;align-items:flex-start;gap:11px;
+    padding:14px 16px;margin-bottom:12px;
+    border-radius:11px;
+    background:rgba(255,59,71,.07);border:1px solid rgba(255,59,71,.26);
+    animation:tagin .45s var(--spring) both;
+  }
+  .err.on{display:flex}
+  .err svg{flex:none;margin-top:1px}
+  .err div{min-width:0}
+  .err h4{margin:0 0 4px;font-size:13px;font-weight:620;color:#ff9aa3}
+  .err p{margin:0;font-size:12.5px;color:var(--ink2);line-height:1.55;word-break:break-word}
+  .err code{
+    font-family:var(--mono);font-size:11.5px;color:#cfd5e2;
+    background:rgba(0,0,0,.42);padding:1.5px 5px;border-radius:4px;border:1px solid var(--line);
+  }
+
+  .idle{opacity:.4;transition:opacity .5s var(--ease)}
+
+  /* ── reveal ───────────────────────────────────────── */
+  [data-rise]{opacity:0;transform:translateY(14px);animation:rise .82s var(--ease) forwards}
+  @keyframes rise{to{opacity:1;transform:none}}
+
+  /* ── responsive ───────────────────────────────────── */
+  @media(max-width:940px){
+    .grid{grid-template-columns:1fr;gap:16px}
+    .hero{margin-bottom:24px}
+  }
+  @media(max-width:560px){
+    .shell{padding:18px 15px 52px}
+    header{margin-bottom:26px}
+    .brand .sep,.brand .sub{display:none}
+    .gauges{grid-template-columns:1fr 1fr;gap:9px}
+    .gauge{padding:13px 7px 11px}
+    .evk{width:100%;padding-top:0}
+    .evrow{flex-direction:column;gap:6px}
+    .row{flex-wrap:wrap}
+    .btn{width:100%}
+    .hint{display:none}
+  }
+
+  @media(prefers-reduced-motion:reduce){
+    *,*::before,*::after{
+      animation-duration:.01ms!important;animation-iteration-count:1!important;
+      transition-duration:.01ms!important;scroll-behavior:auto!important;
+    }
+    [data-rise]{opacity:1;transform:none}
+  }
+</style>
+</head>
+<body>
+<div class="aura" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+
+<div class="shell">
+  <header data-rise style="animation-delay:.02s">
+    <div class="brand">
+      <span class="mark">review-radar</span>
+      <span class="sep" aria-hidden="true"></span>
+      <span class="sub">real-time review triage</span>
+    </div>
+    <div class="status" id="status" data-s="" role="status" aria-live="polite">
+      <span class="dot" aria-hidden="true"></span><span id="status-t">connecting</span>
+    </div>
+  </header>
+
+  <div class="hero" data-rise style="animation-delay:.1s">
+    <h1><span class="g">Negative is not</span> <span class="em">urgent.</span></h1>
+    <p class="lede">
+      Every review is scored twice — once by a sentiment model, once by a transparent
+      urgency engine. Scoring them independently is what stops
+      <code>“charged twice, cancelling today”</code> from being filed as a film opinion.
+    </p>
+  </div>
+
+  <div class="grid">
+    <!-- ── composer ─────────────────────────────── -->
+    <section class="panel panel-pad" data-rise style="animation-delay:.18s" aria-labelledby="cl">
+      <p class="lbl" id="cl">Incoming review</p>
+      <label for="text" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Review text</label>
+      <textarea id="text" spellcheck="false" placeholder="Paste a customer review…"></textarea>
+
+      <div class="chips" id="presets" role="group" aria-label="Example reviews"></div>
+
+      <div class="row">
+        <button class="btn" id="go" type="button">Score review</button>
+        <span class="hint"><kbd>⌘</kbd> <kbd>↵</kbd> to run</span>
+      </div>
+    </section>
+
+    <!-- ── results ──────────────────────────────── -->
+    <section class="results" aria-label="Scoring result">
+      <div class="veil" id="veil" aria-hidden="true">
+        <div class="scan">
+          <div class="bars"><i></i><i></i><i></i><i></i><i></i></div>
+          <span>scoring</span>
+        </div>
+      </div>
+
+      <div class="err" id="err" role="alert">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <circle cx="8" cy="8" r="7" stroke="#ff9aa3" stroke-width="1.4"/>
+          <path d="M8 4.6v4.2M8 11.2v.6" stroke="#ff9aa3" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <div><h4 id="err-h">Service unreachable</h4><p id="err-p"></p></div>
+      </div>
+
+      <div id="out" class="idle">
+        <div class="gauges" data-rise style="animation-delay:.26s">
+          <div class="gauge">
+            <svg viewBox="0 0 140 140" role="img" aria-labelledby="g1t">
+              <title id="g1t">Probability of negative sentiment</title>
+              <defs>
+                <linearGradient id="gr-neg" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#ff8a5c"/><stop offset="1" stop-color="#ff3b47"/>
+                </linearGradient>
+              </defs>
+              <g style="transform:rotate(135deg);transform-origin:70px 70px">
+                <circle class="gtrack" cx="70" cy="70" r="52" stroke-dasharray="245.04 326.73"/>
+                <circle class="gfill" id="g-neg" cx="70" cy="70" r="52" stroke="url(#gr-neg)"/>
+              </g>
+              <text class="val" id="v-neg" x="70" y="74">—</text>
+              <text class="unit" x="70" y="90">P(NEG)</text>
+            </svg>
+            <div class="gname">Sentiment model</div>
+            <div class="gsub">TF-IDF + LogReg · backlog at <b>0.50</b></div>
+          </div>
+
+          <div class="gauge">
+            <svg viewBox="0 0 140 140" role="img" aria-labelledby="g2t">
+              <title id="g2t">Urgency score</title>
+              <defs>
+                <linearGradient id="gr-urg" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#ffd36b"/><stop offset="1" stop-color="#ff8a3b"/>
+                </linearGradient>
+              </defs>
+              <g style="transform:rotate(135deg);transform-origin:70px 70px">
+                <circle class="gtrack" cx="70" cy="70" r="52" stroke-dasharray="245.04 326.73"/>
+                <circle class="gfill" id="g-urg" cx="70" cy="70" r="52" stroke="url(#gr-urg)"/>
+              </g>
+              <text class="val" id="v-urg" x="70" y="74">—</text>
+              <text class="unit" x="70" y="90">URGENCY</text>
+            </svg>
+            <div class="gname">Urgency engine</div>
+            <div class="gsub">Rules · escalates at <b>0.40</b></div>
+          </div>
+        </div>
+
+        <div class="route" id="route" data-rise style="animation-delay:.32s">
+          <div class="rlbl">Routing decision</div>
+          <p class="rname" id="r-name">awaiting input</p>
+          <p class="rwhy" id="r-why">Score a review to see which desk it lands on and why.</p>
+        </div>
+
+        <div class="panel panel-pad map" data-rise style="animation-delay:.38s" aria-labelledby="ml">
+          <p class="lbl" id="ml">Decision space</p>
+          <svg viewBox="0 0 320 216" role="img" aria-labelledby="mt" id="map">
+            <title id="mt">Routing regions with this review plotted by sentiment and urgency</title>
+            <defs>
+              <linearGradient id="z-urgent" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#ff3b47" stop-opacity=".26"/>
+                <stop offset="1" stop-color="#ff3b47" stop-opacity=".09"/>
+              </linearGradient>
+              <linearGradient id="z-backlog" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#f5a524" stop-opacity=".2"/>
+                <stop offset="1" stop-color="#f5a524" stop-opacity=".07"/>
+              </linearGradient>
+              <radialGradient id="pt-glow">
+                <stop offset="0" stop-color="#fff" stop-opacity=".5"/>
+                <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+
+            <!-- analytics base -->
+            <rect class="zone" id="z-a" x="38" y="14" width="252" height="168" rx="5"
+                  fill="rgba(59,169,160,.1)" stroke="rgba(59,169,160,.2)"/>
+            <!-- feedback_backlog: p>=.5, urg<.4 -->
+            <rect class="zone" id="z-b" x="164" y="114.8" width="126" height="67.2"
+                  fill="url(#z-backlog)" stroke="rgba(245,165,36,.3)"/>
+            <!-- support_urgent: p>=.2, urg>=.4 -->
+            <rect class="zone" id="z-u" x="88.4" y="14" width="201.6" height="100.8"
+                  fill="url(#z-urgent)" stroke="rgba(255,59,71,.34)"/>
+
+            <line class="zline" x1="88.4" y1="14" x2="88.4" y2="182"/>
+            <line class="zline" x1="164" y1="114.8" x2="164" y2="182"/>
+            <line class="zline" x1="38" y1="114.8" x2="290" y2="114.8"/>
+
+            <text class="zname" x="284" y="27" fill="#ff8a94" text-anchor="end">support_urgent</text>
+            <text class="zname" x="284" y="176" fill="#f7bf63" text-anchor="end">feedback_backlog</text>
+            <text class="zname" x="44" y="176" fill="#6fc8bf">analytics</text>
+
+            <line class="axis" x1="38" y1="182" x2="290" y2="182"/>
+            <line class="axis" x1="38" y1="14" x2="38" y2="182"/>
+
+            <text class="atick" x="38" y="192" text-anchor="middle">0</text>
+            <text class="atick" x="88.4" y="192" text-anchor="middle">.2</text>
+            <text class="atick" x="164" y="192" text-anchor="middle">.5</text>
+            <text class="atick" x="290" y="192" text-anchor="middle">1</text>
+            <text class="atick" x="32" y="185" text-anchor="end">0</text>
+            <text class="atick" x="32" y="117.8" text-anchor="end">.4</text>
+            <text class="atick" x="32" y="17" text-anchor="end">1</text>
+
+            <text class="aname" x="164" y="207" text-anchor="middle">p(negative) →</text>
+            <text class="aname" x="0" y="0" text-anchor="middle" transform="translate(13,98) rotate(-90)">urgency →</text>
+
+            <g class="pt hidden" id="pt" style="transform:translate(38px,182px)">
+              <circle class="pt-halo" r="13" fill="url(#pt-glow)"/>
+              <circle r="5.5" fill="#fff" opacity=".18"/>
+              <circle r="3.4" fill="#fff" id="pt-core"/>
+            </g>
+          </svg>
+        </div>
+
+        <div class="panel panel-pad" data-rise style="animation-delay:.44s" aria-labelledby="el" style="margin-top:12px">
+          <p class="lbl" id="el">Why — matched signals</p>
+          <div class="ev" id="ev" aria-live="polite">
+            <div class="evrow">
+              <span class="evk">Churn</span>
+              <div class="evv" id="e-churn"><span class="none">—</span></div>
+            </div>
+            <div class="evrow">
+              <span class="evk">Billing</span>
+              <div class="evv" id="e-money"><span class="none">—</span></div>
+            </div>
+            <div class="evrow">
+              <span class="evk">Anger</span>
+              <div class="evv" id="e-anger"><span class="none">—</span></div>
+            </div>
+            <div class="evrow">
+              <span class="evk">Intensity</span>
+              <div class="evv">
+                <div class="meter"><i id="e-int-bar"></i></div>
+                <span class="mval" id="e-int">—</span>
+              </div>
+            </div>
+          </div>
+          <div class="meta">
+            <span class="badge">latency <b id="m-lat">—</b></span>
+            <span class="badge">weights <b>churn .45 · billing .30 · anger .15 · shout .10</b></span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // Served from the API itself (http://127.0.0.1:3000/demo) this is same-origin
+  // and Just Works. Opened by double-clicking the file, location.origin is the
+  // string "file://" — so the request would go to "file:///review" and die with
+  // no useful message. Fall back to the documented dev port, and let ?api= point
+  // anywhere else.
+  const API = new URLSearchParams(location.search).get("api")
+    || (/^https?:$/.test(location.protocol) ? location.origin : "http://127.0.0.1:3000");
+  const FILE = !/^https?:$/.test(location.protocol);
+
+  const ARC  = 245.04;
+  const $    = id => document.getElementById(id);
+  const rmot = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // plot geometry — must mirror src/urgency.py:route()
+  const X0 = 38, XW = 252, Y0 = 182, YH = 168;
+  const px = v => X0 + v * XW;
+  const py = v => Y0 - v * YH;
+
+  const PRESETS = [
+    { k: "Billing churn",
+      t: "Charged twice and nobody replied. I want a REFUND, cancelling today!!!" },
+    { k: "Misspelled",
+      t: "worst film ever, cancle my subscribtion and give me a refnud!!!" },
+    { k: "Implicit churn",
+      t: "I dont want my subscription" },
+    { k: "Calm negative",
+      t: "The ending felt rushed and the pacing dragged badly in the second act." },
+    { k: "Positive",
+      t: "Absolutely loved it — the best film I have seen all year." },
+    { k: "Praise + churn word",
+      t: "I love this service, I would never cancel." },
+  ];
+
+  const COPY = {
+    support_urgent: r =>
+      `Urgency <code>${f2(r.urgency)}</code> ≥ <code>0.40</code> and sentiment is not clearly positive ` +
+      `(<code>${f2(r.p_negative)}</code> ≥ <code>0.20</code>). Escalated on urgency alone — the sentiment ` +
+      `model is out of domain on billing language and never gets to veto this.`,
+    feedback_backlog: r =>
+      `Negative (<code>${f2(r.p_negative)}</code> ≥ <code>0.50</code>) but calm ` +
+      `(urgency <code>${f2(r.urgency)}</code> &lt; <code>0.40</code>). Real feedback, not an emergency — ` +
+      `it goes to the product backlog rather than paging a human.`,
+    analytics: r =>
+      `Below both gates — sentiment <code>${f2(r.p_negative)}</code> &lt; <code>0.50</code>, ` +
+      `urgency <code>${f2(r.urgency)}</code> &lt; <code>0.40</code>. Counted in analytics, nobody is interrupted.`,
+  };
+
+  const f2 = n => n.toFixed(2);
+
+  // ── presets ────────────────────────────────────────
+  const box = $("presets");
+  PRESETS.forEach(p => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = p.k;
+    b.addEventListener("click", () => { $("text").value = p.t; run(); });
+    box.appendChild(b);
+  });
+
+  // ── health ─────────────────────────────────────────
+  async function health() {
+    const el = $("status"), t = $("status-t");
+    try {
+      const r = await fetch(`${API}/health`, { cache: "no-store" });
+      if (!r.ok) throw new Error(String(r.status));
+      el.dataset.s = "ok"; t.textContent = "model live";
+    } catch {
+      el.dataset.s = "down"; t.textContent = "offline";
+    }
+  }
+
+  // ── animated number ────────────────────────────────
+  function count(el, to) {
+    if (rmot) { el.textContent = f2(to); return; }
+    const from = parseFloat(el.textContent) || 0;   // "—" -> NaN -> 0
+    const D = 1000;
+    // t0 comes from the first frame's own timestamp: a rAF callback is handed the
+    // frame's start time, which can predate a performance.now() taken mid-frame.
+    // Mixing the two makes p negative and flashes a negative probability.
+    let t0 = null;
+    const tick = now => {
+      if (t0 === null) t0 = now;
+      const p = Math.min(1, Math.max(0, (now - t0) / D));
+      const e = 1 - Math.pow(1 - p, 3);           // easeOutCubic
+      el.textContent = f2(from + (to - from) * e);
+      if (p < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  function tags(el, list, cls) {
+    el.innerHTML = "";
+    if (!list || !list.length) {
+      const s = document.createElement("span");
+      s.className = "none"; s.textContent = "none";
+      el.appendChild(s); return;
+    }
+    list.forEach((w, i) => {
+      const s = document.createElement("span");
+      s.className = `tag ${cls}`;
+      s.textContent = w;
+      s.style.animationDelay = `${i * 55}ms`;
+      el.appendChild(s);
+    });
+  }
+
+  // ── error ──────────────────────────────────────────
+  function fail(head, msg) {
+    $("err-h").textContent = head;
+    $("err-p").innerHTML = msg;
+    $("err").classList.add("on");
+  }
+  const clearFail = () => $("err").classList.remove("on");
+
+  // ── render ─────────────────────────────────────────
+  function render(r) {
+    $("out").classList.remove("idle");
+
+    $("g-neg").style.strokeDashoffset = ARC * (1 - r.p_negative);
+    $("g-urg").style.strokeDashoffset = ARC * (1 - r.urgency);
+    count($("v-neg"), r.p_negative);
+    count($("v-urg"), r.urgency);
+
+    const rt = $("route");
+    rt.dataset.r = r.route;
+    rt.classList.add("on");
+    $("r-name").textContent = r.route;
+    $("r-why").innerHTML = (COPY[r.route] || (() => ""))(r);
+
+    // map: highlight the winning zone, park the dot on its coordinates
+    const win = { support_urgent: "z-u", feedback_backlog: "z-b", analytics: "z-a" }[r.route];
+    ["z-u", "z-b", "z-a"].forEach(id => $(id).classList.toggle("dim", id !== win));
+    const pt = $("pt");
+    pt.classList.remove("hidden");
+    pt.style.transform = `translate(${px(r.p_negative)}px,${py(r.urgency)}px)`;
+    $("pt-core").setAttribute("fill",
+      { support_urgent: "#ff3b47", feedback_backlog: "#f5a524", analytics: "#3ba9a0" }[r.route]);
+
+    const s = r.urgency_signals || {};
+    tags($("e-churn"), s.churn_phrases, "churn");
+    tags($("e-money"), s.money_phrases, "money");
+    tags($("e-anger"), s.anger_words,  "anger");
+    const it = s.intensity ?? 0;
+    $("e-int-bar").style.width = `${it * 100}%`;
+    $("e-int").textContent = f2(it);
+
+    $("m-lat").textContent = `${r.latency_ms} ms`;
+  }
+
+  // ── run ────────────────────────────────────────────
+  let busy = false;
+  async function run() {
+    if (busy) return;
+    const text = $("text").value.trim();
+    clearFail();
+
+    if (!text) {
+      fail("Nothing to score", "Type a review or pick one of the examples above.");
+      $("text").focus();
+      return;
+    }
+
+    busy = true;
+    $("go").disabled = true;
+    $("veil").classList.add("on");
+    const t0 = performance.now();
+
+    try {
+      const res = await fetch(`${API}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!res.ok) {
+        let detail = `HTTP ${res.status}`;
+        try {
+          const j = await res.json();
+          if (j.detail) detail = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
+        } catch { /* body was not json */ }
+        throw new Error(detail);
+      }
+
+      const data = await res.json();
+      // keep the scan visible long enough to read, but never stall a slow response
+      const wait = rmot ? 0 : Math.max(0, 420 - (performance.now() - t0));
+      setTimeout(() => { render(data); $("veil").classList.remove("on"); }, wait);
+      $("status").dataset.s = "ok"; $("status-t").textContent = "model live";
+    } catch (e) {
+      $("veil").classList.remove("on");
+      const off = e instanceof TypeError;   // fetch itself failed → nothing listening
+      fail(
+        off ? "Service unreachable" : "Scoring failed",
+        off
+          ? `No response from <code>${API}</code>. Start the API with ` +
+            `<code>uvicorn service.app:app --port 3000</code>` +
+            (FILE
+              ? `, then open <code>http://127.0.0.1:3000/demo</code> instead of this file. ` +
+                `Opening the page from disk works too, but the API must be running either way.`
+              : ` and reload.`)
+          : String(e.message)
+      );
+      if (off) { $("status").dataset.s = "down"; $("status-t").textContent = "offline"; }
+    } finally {
+      busy = false;
+      $("go").disabled = false;
+    }
+  }
+
+  $("go").addEventListener("click", run);
+  $("text").addEventListener("keydown", e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); run(); }
+  });
+
+  health();
+
+  // /demo?q=… prefills and scores on load — shareable link straight to an example
+  const q = new URLSearchParams(location.search).get("q");
+  if (q) { $("text").value = q; run(); }
+})();
+</script>
+</body>
+</html>

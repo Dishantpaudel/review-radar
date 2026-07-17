@@ -1,0 +1,17 @@
+# Runtime dependencies for the scoring service only.
+#
+# requirements.txt is the *research* environment: it carries torch, transformers,
+# datasets, mlflow and matplotlib because the notebooks and the DistilBERT
+# comparison need them. None of that is reachable from service/app.py, and torch
+# alone is ~800 MB, so installing the research set into the serving image would
+# make it roughly six times bigger for code that never runs.
+#
+# scikit-learn/numpy/scipy are not imported by name anywhere in the serving path
+# -- they are pulled in implicitly when pickle reconstructs the fitted Pipeline,
+# which is exactly the kind of dependency that gets dropped by accident and then
+# fails at container start rather than at build.
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.0
+scikit-learn>=1.4
+numpy>=1.26

@@ -27,6 +27,12 @@ CONFIGS = [
     {"name": "C: + bigrams, 50k", "max_features": 50_000, "ngram": (1, 2), "C": 1.0},
     {"name": "D: + bigrams, weaker C=0.1", "max_features": 50_000, "ngram": (1, 2), "C": 0.1},
     {"name": "E: + bigrams, stronger C=10", "max_features": 50_000, "ngram": (1, 2), "C": 10.0},
+    # F is the config that has to earn its place: it doubles training time and
+    # model size, so it is only worth shipping if the sweep says so. Note that
+    # F1 on IMDB is the wrong place to look for its benefit -- IMDB is clean
+    # prose, so char n-grams have almost no misspellings to rescue there. The
+    # payoff shows up in tests/test_typos.py, on the text real customers write.
+    {"name": "F: word+char n-grams", "max_features": 50_000, "ngram": (1, 2), "C": 1.0, "use_char": True},
 ]
 
 
@@ -39,17 +45,23 @@ def run_sweep() -> list[dict]:
 
     for cfg in CONFIGS:
         with mlflow.start_run(run_name=cfg["name"]):
+            use_char = cfg.get("use_char", False)
             mlflow.log_params(
                 {
                     "max_features": cfg["max_features"],
                     "ngram_range": f"{cfg['ngram'][0]}-{cfg['ngram'][1]}",
                     "C": cfg["C"],
                     "model": "tfidf_logreg",
+                    "features": "word+char" if use_char else "word",
                 }
             )
 
-            pipeline = build_pipeline(max_features=cfg["max_features"], C=cfg["C"])
-            pipeline.named_steps["tfidf"].set_params(ngram_range=cfg["ngram"])
+            pipeline = build_pipeline(
+                max_features=cfg["max_features"],
+                C=cfg["C"],
+                ngram=cfg["ngram"],
+                use_char=use_char,
+            )
             pipeline.fit(train_df["text"], train_df["label"])
 
             p_negative = pipeline.predict_proba(test_df["text"])[:, 0]

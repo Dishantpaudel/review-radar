@@ -1,0 +1,57 @@
+# review-radar
+#
+#   docker compose up api                 production image, port 3000
+#   docker compose --profile dev up dev   live reload against local source
+#   docker compose --profile train run --rm train
+#
+# The model is a build input (see Dockerfile), so `train` exists to produce it
+# from a clean checkout without needing a local Python environment.
+
+services:
+  api:
+    build:
+      context: .
+      target: runtime
+    image: review-radar:latest
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      # Uvicorn's own knobs; the app reads no config of its own.
+      UVICORN_WORKERS: "${UVICORN_WORKERS:-1}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys,urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:3000/health', timeout=4).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
+    restart: unless-stopped
+
+  # Same image, but source is bind-mounted and uvicorn reloads on save. The
+  # model is mounted read-only rather than baked in, so retraining on the host
+  # is picked up by a restart instead of a rebuild.
+  dev:
+    profiles: ["dev"]
+    build:
+      context: .
+      target: runtime
+    image: review-radar:latest
+    ports:
+      - "${DEV_PORT:-3000}:3000"
+    volumes:
+      - ./src:/app/src:ro
+      - ./service:/app/service:ro
+      - ./demo:/app/demo:ro
+      - ./models:/app/models:ro
+    command: ["uvicorn", "service.app:app", "--host", "0.0.0.0", "--port", "3000", "--reload"]
+
+  # Trains the baseline into ./models on the host. Uses the full research
+  # requirements, which is why it is a separate profile and not the api image.
+  train:
+    profiles: ["train"]
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: >
+      bash -c "pip install --no-cache-dir -r requirements.txt &&
+               python -m src.train"

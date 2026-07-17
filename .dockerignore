@@ -1,0 +1,29 @@
+# Everything the serving image has no use for. Keeping this tight matters for
+# more than size: the build context is uploaded to the daemon on every build,
+# and data/ alone is ~80 MB of IMDB.
+.git/
+.gitignore
+.venv/
+.pytest_cache/
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# Research artefacts, not runtime inputs
+data/
+mlruns/
+mlflow.db
+notebooks/
+tests/
+conftest.py
+
+# Research-only deps (torch, transformers, mlflow); the image uses
+# requirements-serve.txt instead.
+requirements.txt
+
+# Docs and decks
+*.html
+!demo/index.html
+*.md
+
+# models/ is deliberately NOT ignored: the image needs the trained pickle.
