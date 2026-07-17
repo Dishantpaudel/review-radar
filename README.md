@@ -20,7 +20,7 @@ new review ──► sentiment model P(negative) ──┐
 Each review is scored twice, because **"negative" and "urgent" are different questions**:
 
 ```python
-if urgency >= 0.4 and p_negative >= 0.2:  return "support_urgent"
+if urgency >= 0.4 and p_negative >= 0.1:  return "support_urgent"
 if p_negative >= 0.5:                     return "feedback_backlog"
 return "analytics"
 ```
@@ -131,7 +131,18 @@ The floor **cannot** be tuned to fix this: the real churning customer from defec
 
 > **The lesson:** a unit test that invents its own inputs only proves the function does what the function does. This bug lived in the gap between the component and the pipeline, where a unit test cannot look — so the replacement drives the real model end-to-end.
 
-Tests grew **10 → 23 → 53**, covering all three defects, the false-positive guards, misspellings, negation, and the collision guard. `test_flagship_churn_still_escalates_end_to_end` drives the real model, because the flagship case now escalates on only 0.038 of margin above the floor — a number a future retrain could move, and one no constant-based test would notice.
+### 3b. …and the floor it left behind then vetoed real churn
+
+Once negation owned the praise guard, the `clearly_positive` floor (0.2) had only one job left — and it was doing it wrong. Character n-grams pulled billing-language sentiment *down*, and a natural phrasing landed under the floor:
+
+```
+"Charged twice, I want a REFUND, cancelling today!!!"
+p_negative = 0.17   urgency = 0.84   →   analytics   ❌
+```
+
+0.17 < 0.2, so the floor dropped a churning customer — defect 2, resurrected by my own typo fix. **Fix:** lower the floor to **0.1**. It can be that low now precisely because negation took over the praise guard; the floor's only remaining duty is a churn word inside *confident* praise (p_negative < 0.1), the one regime where this out-of-domain model is actually reliable. `test_flagship_churn_still_escalates_end_to_end` now drives the real model on four phrasings so this cannot return silently.
+
+Tests grew **10 → 23 → 56**, covering all defects, the false-positive guards, misspellings, negation, and the collision guard — the flagship-churn test drives the real model, not constants, because that is the only kind of test that would have caught 3b.
 
 ## Data
 
@@ -155,7 +166,7 @@ src/
 service/app.py            FastAPI: POST /review → {p_negative, urgency, route}; GET /demo
 demo/index.html           browser demo — live scoring + decision-space plot
 notebooks/01–04           EDA → baseline → transformer → business threshold
-tests/                    urgency, typos, threshold math, API (53 tests)
+tests/                    urgency, typos, threshold math, API (56 tests)
 Dockerfile                two-stage, slim, non-root, health-checked
 docker-compose.yml        api / dev (reload) / train profiles
 requirements-serve.txt    runtime deps only (no torch/mlflow) → 762 MB image
@@ -173,7 +184,7 @@ pip install -r requirements.txt
 python -m src.train                  # trains model, logs to MLflow, saves models/tfidf_logreg.pkl (~7 min)
 python -m src.compare_transformer    # optional: DistilBERT comparison (CPU, ~10 min)
 python -m src.robustness             # optional: proves char n-grams earn their place
-pytest                               # 53 tests
+pytest                               # 56 tests
 
 uvicorn service.app:app --port 3000  # live API + demo at /demo
 ```

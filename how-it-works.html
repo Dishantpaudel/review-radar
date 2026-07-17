@@ -122,14 +122,15 @@
   <div class="step">
     <div class="dot">2</div>
     <h2>Preprocessing</h2>
-    <span class="file">src/train.py — TfidfVectorizer</span>
-    <p>Raw text carries capitalisation, punctuation and filler that mean nothing to a linear model. Preprocessing normalises it and splits it into <b>tokens</b>.</p>
+    <span class="file">src/text.py · src/train.py</span>
+    <p>Raw text carries capitalisation, punctuation and filler that mean nothing to a linear model. One <b>shared normaliser</b> (<code>src/text.py</code>) lowercases, strips <code>&lt;br&gt;</code> markup, folds apostrophes, and flattens elongation before anything is tokenised.</p>
     <div class="io">
-      <div class="box"><div class="lbl">In</div>"This Movie Was a TOTAL waste of time!!!"</div>
+      <div class="box"><div class="lbl">In</div>"This Movie Was a TOTAL waste of time!!! I don't like it"</div>
       <div class="go">→</div>
-      <div class="box o"><div class="lbl">Out</div>["this","movie","was","total","waste","of","time"]<br><small>lowercased · punctuation stripped · tokenised</small></div>
+      <div class="box o"><div class="lbl">Out</div>["this","movie","was","total","waste","of","time","i","dont","like","it"]<br><small>lowercased · markup stripped · <b>don't → dont</b> · tokenised</small></div>
     </div>
-    <p>Word <b>pairs</b> (bigrams) are retained alongside single words, because <code>"not good"</code> inverts <code>"good"</code> and single tokens cannot express that.</p>
+    <p>Word <b>pairs</b> (bigrams) are retained alongside single words, because <code>"not good"</code> inverts <code>"good"</code> and single tokens cannot express that. Folding <code>don't → dont</code> is what lets the <code>"dont like"</code> bigram exist as one feature instead of splitting on the apostrophe.</p>
+    <div class="note"><b>Why one shared normaliser matters:</b> the same function feeds both the model and the urgency engine, so they can never disagree about what a word is. It is baked into the saved model (stage 7), which makes it structurally impossible to preprocess differently at inference than at training — the classic train/serve skew simply cannot occur here.</div>
     <div class="note"><b>Steps deliberately absent:</b> no imputation and no class rebalancing. IMDB has no missing values and is already balanced, so adding those stages would be ceremony rather than engineering.</div>
   </div>
 
@@ -138,7 +139,7 @@
     <div class="dot">3</div>
     <h2>TF-IDF vectorisation <span style="font-size:14px;color:var(--muted);font-weight:400">— feature engineering</span></h2>
     <span class="file">src/train.py</span>
-    <p>Linear models consume numbers, not language. TF-IDF converts each review into a vector of 50,000 values, scoring each term by two factors:</p>
+    <p>Linear models consume numbers, not language. TF-IDF converts each review into a sparse vector, scoring each term by two factors:</p>
     <table>
       <tr><th>Component</th><th>Measures</th><th>Effect</th></tr>
       <tr><td><b>TF</b> — term frequency</td><td>how often the term appears in this review</td><td>repetition increases weight</td></tr>
@@ -150,6 +151,14 @@
       <div class="box o"><div class="lbl">Out</div>the · movie · was → <b>≈ 0.00</b><br>waste → <b>0.61</b> &nbsp;·&nbsp; total → <b>0.28</b></div>
     </div>
     <div class="note"><b>The point:</b> no engineer wrote a list of significant words. TF-IDF derives which terms carry opinion from corpus statistics alone. That derivation is the feature engineering.</div>
+    <h3 style="font-size:16px;margin-top:16px">Two vectorisers, unioned — words <i>and</i> characters</h3>
+    <p>Whole-word features have one fatal gap: a word never seen in training contributes <b>nothing at all</b>, because it has no slot in the vector. Real customers misspell exactly the words that carry the sentiment, so <i>"its borst"</i> (worst) scored a confident <b>0.16 — positive</b> under words alone. So a second vectoriser runs over <b>character n-grams</b> (3–5 letters) and its output is concatenated onto the word vector: 50,000 word features + 50,000 character features = a 100,000-value vector.</p>
+    <div class="io">
+      <div class="box"><div class="lbl">In</div>"borst" <small>(a misspelling of "worst")</small></div>
+      <div class="go">→</div>
+      <div class="box o"><div class="lbl">char n-grams</div>"bo·bor·<b>ors·rst·st </b>" — shares 3 of 5 chunks with "worst", so the model still sees most of the evidence</div>
+    </div>
+    <div class="note"><b>Measured, not assumed.</b> On clean IMDB this adds only ~0.003 F1 — because IMDB is edited prose with almost no misspellings. The benefit lives on the short, mistyped reviews real customers write, where <i>"its borst"</i> moves from 0.16 (positive) to <b>0.88</b> (negative). <code>src/robustness.py</code> and <code>tests/test_typos.py</code> exist precisely because the headline F1 cannot see this.</div>
   </div>
 
   <!-- 4 -->
@@ -158,17 +167,17 @@
     <h2>Training</h2>
     <span class="file">src/train.py — <code>python -m src.train</code></span>
     <p>Logistic regression learns <b>one weight per feature</b>. It passes over the 25,000 training reviews, adjusting weights until its predictions align with the known labels. Scoring a new review sums the weights of the features present and maps the total onto a probability.</p>
-    <pre>z = intercept + Σ (tfidf[term] × weight[term])
+    <pre>z = intercept + Σ (tfidf[feature] × weight[feature])
 P(negative) = 1 − sigmoid(z)</pre>
-    <p>Weights extracted from the trained model:</p>
+    <p>Word weights extracted from the trained model:</p>
     <div class="card" style="margin-bottom:8px">
       <b style="color:var(--neg);font-size:14px">Strongest negative</b><br>
-      <span class="wtag neg">bad −7.91</span><span class="wtag neg">worst −7.19</span><span class="wtag neg">awful −5.85</span><span class="wtag neg">"the worst" −5.74</span><span class="wtag neg">boring −5.36</span><span class="wtag neg">waste −4.91</span>
+      <span class="wtag neg">bad −4.11</span><span class="wtag neg">worst −4.05</span><span class="wtag neg">"the worst" −3.34</span><span class="wtag neg">awful −2.96</span><span class="wtag neg">waste −2.83</span><span class="wtag neg">boring −2.68</span>
       <br><br>
       <b style="color:var(--pos);font-size:14px">Strongest positive</b><br>
-      <span class="wtag pos">great +7.08</span><span class="wtag pos">excellent +5.46</span><span class="wtag pos">wonderful +4.41</span><span class="wtag pos">"the best" +3.89</span><span class="wtag pos">amazing +3.73</span>
+      <span class="wtag pos">great +3.11</span><span class="wtag pos">"the best" +2.55</span><span class="wtag pos">best +2.30</span><span class="wtag pos">fun +2.26</span><span class="wtag pos">excellent +2.21</span>
     </div>
-    <div class="note"><b>Two bigrams rank among the strongest features</b> — <code>"the worst"</code> and <code>"the best"</code>. That is direct evidence the decision in stage 2 to keep word pairs was worth its cost, and the experiment sweep quantifies it at <b>+0.011 F1</b>.</div>
+    <div class="note"><b>Two bigrams rank among the strongest features</b> — <code>"the worst"</code> and <code>"the best"</code>. That is direct evidence the decision in stage 2 to keep word pairs was worth its cost, and the experiment sweep quantifies it at <b>+0.011 F1</b>. Weights are smaller than in a word-only model because character n-grams (stage 3) now carry part of the signal, so "bad" is split across the word feature and its letter-chunks rather than riding on one weight.</div>
   </div>
 
   <!-- 5 -->
@@ -182,12 +191,12 @@ P(negative) = 1 − sigmoid(z)</pre>
     </div>
     <table>
       <tr><th>Metric</th><th>Question</th><th class="n">Result</th></tr>
-      <tr><td><b>Recall</b></td><td>Of all genuinely negative reviews, how many were detected?</td><td class="n">0.896</td></tr>
-      <tr><td><b>Precision</b></td><td>Of those flagged, how many were genuinely negative?</td><td class="n">0.904</td></tr>
-      <tr><td><b>F1</b></td><td>Balance of the two — the project's acceptance gate</td><td class="n good">0.900</td></tr>
+      <tr><td><b>Recall</b></td><td>Of all genuinely negative reviews, how many were detected?</td><td class="n">0.901</td></tr>
+      <tr><td><b>Precision</b></td><td>Of those flagged, how many were genuinely negative?</td><td class="n">0.905</td></tr>
+      <tr><td><b>F1</b></td><td>Balance of the two — the project's acceptance gate</td><td class="n good">0.903</td></tr>
       <tr><td><b>Precision@1000</b></td><td>Of the 1,000 highest-confidence flags, how many are correct?</td><td class="n good">1.00</td></tr>
     </table>
-    <p>The acceptance gate was <b>F1 ≥ 0.85</b>. The model reaches <b>0.900</b>.</p>
+    <p>The acceptance gate was <b>F1 ≥ 0.85</b>. The model reaches <b>0.903</b>.</p>
     <div class="note"><b>Precision@1000 = 1.00 is the operational result.</b> Support capacity is finite and the queue is worked top-down. Every one of the first thousand flagged reviews is genuinely negative, so no agent time is spent on false alarms where capacity is scarcest.</div>
   </div>
 
@@ -199,22 +208,23 @@ P(negative) = 1 − sigmoid(z)</pre>
     <p>Every training run writes its configuration, its scores and its output artifact to <b>MLflow</b>, an experiment database with a web interface. This is the difference between a result and a reproducible result.</p>
     <table>
       <tr><th>Recorded</th><th>Example</th></tr>
-      <tr><td><b>Parameters</b></td><td><code>max_features=50000</code>, <code>C=1.0</code>, <code>ngram_range=1-2</code></td></tr>
-      <tr><td><b>Metrics</b></td><td><code>f1_negative=0.8998</code>, <code>recall_negative=0.8961</code></td></tr>
+      <tr><td><b>Parameters</b></td><td><code>max_features=50000</code>, <code>C=1.0</code>, <code>features=word+char</code></td></tr>
+      <tr><td><b>Metrics</b></td><td><code>f1_negative=0.9029</code>, <code>recall_negative=0.9009</code></td></tr>
       <tr><td><b>Artifacts</b></td><td><code>tfidf_logreg.pkl</code> — the model itself</td></tr>
       <tr><td><b>Run ID</b></td><td><code>3b3c9a50</code> — an immutable reference</td></tr>
     </table>
-    <p><code>python -m src.experiments</code> trains five configurations and records each as a run. Sorted by F1:</p>
+    <p><code>python -m src.experiments</code> trains six configurations and records each as a run. Sorted by F1:</p>
     <table>
-      <tr><th>Run</th><th>ngram</th><th class="n">features</th><th class="n">C</th><th class="n">F1 (neg)</th></tr>
-      <tr><td>E</td><td>1-2</td><td class="n">50,000</td><td class="n">10.0</td><td class="n good">0.9030</td></tr>
-      <tr class="win"><td>C — <b>shipped</b></td><td>1-2</td><td class="n">50,000</td><td class="n">1.0</td><td class="n">0.8998</td></tr>
-      <tr><td>B</td><td>1-1</td><td class="n">50,000</td><td class="n">1.0</td><td class="n">0.8889</td></tr>
-      <tr><td>A</td><td>1-1</td><td class="n">3,000</td><td class="n">1.0</td><td class="n">0.8825</td></tr>
-      <tr><td>D</td><td>1-2</td><td class="n">50,000</td><td class="n">0.1</td><td class="n bad">0.8684</td></tr>
+      <tr><th>Run</th><th>features</th><th class="n">words</th><th class="n">C</th><th class="n">F1 (neg)</th></tr>
+      <tr class="win"><td>F — <b>shipped</b></td><td>word + char</td><td class="n">50,000</td><td class="n">1.0</td><td class="n good">0.9029</td></tr>
+      <tr><td>E</td><td>bigrams</td><td class="n">50,000</td><td class="n">10.0</td><td class="n">0.9025</td></tr>
+      <tr><td>C</td><td>bigrams</td><td class="n">50,000</td><td class="n">1.0</td><td class="n">0.9003</td></tr>
+      <tr><td>B</td><td>unigrams</td><td class="n">50,000</td><td class="n">1.0</td><td class="n">0.8894</td></tr>
+      <tr><td>A</td><td>unigrams</td><td class="n">3,000</td><td class="n">1.0</td><td class="n">0.8835</td></tr>
+      <tr><td>D</td><td>bigrams</td><td class="n">50,000</td><td class="n">0.1</td><td class="n bad">0.8686</td></tr>
     </table>
-    <div class="warn"><b>Run E posts the highest F1 and is not shipped.</b> It beats the deployed configuration by 0.003 on a single test-set reading, and it is the less-regularised model, so it carries more overfitting risk on a distribution that is not even the production one. It is recorded as a promotion candidate pending cross-validation. Adding bigrams (+0.011) was the only change large enough to act on.</div>
-    <div class="note"><b>Inspect it:</b> <code>mlflow ui --backend-store-uri sqlite:///mlflow.db</code> → <code>127.0.0.1:5000</code>. Three experiments, nine runs.</div>
+    <div class="warn"><b>The top three (F, E, C) finish within 0.003 F1 — a photo finish.</b> F "wins", but it beats E by 0.0004, which on 25,000 reviews is ten of them: a coin flip, not a better model. So F is not shipped <i>because</i> it topped the sweep — that margin is noise. It ships because it is the only one of the three that survives a misspelling (stage 2), a property this clean test set cannot measure. The sweep's reliable job was the part it did well: reject the losers (D under-fits, A/B lack bigrams) and confirm the one real win, bigrams at <b>+0.011</b>.</div>
+    <div class="note"><b>Inspect it:</b> <code>mlflow ui --backend-store-uri sqlite:///mlflow.db</code> → <code>127.0.0.1:5000</code>.</div>
   </div>
 
   <!-- 7 -->
@@ -222,7 +232,7 @@ P(negative) = 1 − sigmoid(z)</pre>
     <div class="dot">7</div>
     <h2>Model persistence</h2>
     <span class="file">models/tfidf_logreg.pkl</span>
-    <p>Training takes roughly two minutes — far too slow to repeat per request. The fitted pipeline is serialised to a single file. The service loads it once at startup and reuses it for every subsequent prediction.</p>
+    <p>Training takes roughly seven minutes — the character n-grams turn 25,000 reviews into millions of letter-chunks — far too slow to repeat per request. The fitted pipeline is serialised to a single file. The service loads it once at startup and reuses it for every subsequent prediction.</p>
     <div class="io">
       <div class="box"><div class="lbl">In</div>the fitted pipeline, in memory</div>
       <div class="go">→</div>
@@ -240,17 +250,19 @@ P(negative) = 1 − sigmoid(z)</pre>
     <pre><span class="c"># request</span>
 POST /review   { <span class="s">"text"</span>: <span class="s">"Charged twice, cancelling!!!"</span> }
 
-<span class="c"># response, measured at 2.32 ms</span>
-{ <span class="f">"p_negative"</span>: <span class="n">0.319</span>, <span class="f">"urgency"</span>: <span class="n">0.828</span>,
-  <span class="f">"route"</span>: <span class="s">"support_urgent"</span>, <span class="f">"latency_ms"</span>: <span class="n">2.32</span> }</pre>
+<span class="c"># response, measured at ~3 ms</span>
+{ <span class="f">"p_negative"</span>: <span class="n">0.346</span>, <span class="f">"urgency"</span>: <span class="n">0.800</span>,
+  <span class="f">"urgency_signals"</span>: { <span class="f">"churn_phrases"</span>: [<span class="s">"cancelling"</span>], <span class="f">"money_phrases"</span>: [<span class="s">"charged"</span>] },
+  <span class="f">"route"</span>: <span class="s">"support_urgent"</span>, <span class="f">"latency_ms"</span>: <span class="n">3.21</span> }</pre>
     <table>
       <tr><th>Design decision</th><th>Reason</th></tr>
-      <tr><td>Model loaded once via the lifespan hook</td><td>per-request loading would cost seconds; this is why latency is ~2 ms</td></tr>
-      <tr><td>Pydantic-typed request contract</td><td>malformed payloads are rejected at the boundary, not inside the model</td></tr>
+      <tr><td>Model loaded once via the lifespan hook</td><td>per-request loading would cost seconds; this is why latency is ~3 ms</td></tr>
+      <tr><td>Pydantic-typed request contract</td><td>malformed payloads are rejected at the boundary, not inside the model; <code>text</code> is capped at 20k chars so an unbounded paste cannot block a worker</td></tr>
       <tr><td><code>/health</code> endpoint</td><td>orchestrators require a liveness signal before routing traffic</td></tr>
+      <tr><td><code>/demo</code> serves the browser UI</td><td>same-origin with the API, so the demo needs no CORS config and no second server</td></tr>
       <tr><td><code>latency_ms</code> returned per call</td><td>performance that is not measured cannot be monitored</td></tr>
     </table>
-    <div class="note"><b>Interactive console:</b> run <code>uvicorn service.app:app --port 8000</code> and open <code>127.0.0.1:8000/docs</code>. FastAPI generates an OpenAPI test page from the type signatures — submit any review text and inspect the full response.</div>
+    <div class="note"><b>Try it:</b> run <code>uvicorn service.app:app --port 3000</code>, then open <code>127.0.0.1:3000/demo</code> for the live UI (paste a review, watch it routed on a decision-space plot) or <code>127.0.0.1:3000/docs</code> for the raw OpenAPI console.</div>
   </div>
 
   <!-- 9 -->
@@ -274,10 +286,10 @@ POST /review   { <span class="s">"text"</span>: <span class="s">"Charged twice, 
       <b>The domain gap, measured.</b> The same system on two inputs:
       <table style="margin-top:8px">
         <tr><th>Input</th><th class="n">P(negative)</th><th>Interpretation</th></tr>
-        <tr><td>"waste of time, boring, awful acting, terrible ending"</td><td class="n good">0.9994</td><td>movie vocabulary — confident and correct</td></tr>
-        <tr><td>"Charged twice, I want a REFUND, cancelling today!!!"</td><td class="n bad">0.319</td><td>billing vocabulary — out of domain, unreliable</td></tr>
+        <tr><td>"waste of time, boring, awful acting, terrible ending"</td><td class="n good">1.0000</td><td>movie vocabulary — confident and correct</td></tr>
+        <tr><td>"Charged twice, I want a REFUND, cancelling today!!!"</td><td class="n bad">0.165</td><td>billing vocabulary — out of domain, unreliable</td></tr>
       </table>
-      <p style="margin:8px 0 0;font-size:14.5px">The second review is unmistakably from a departing customer, yet the sentiment model rates it as probably positive. It has no billing vocabulary to reason with. The urgency engine scored the same text at <b>0.828</b>. This is the concrete reason the two scorers exist: <b>each covers the other's blind spot.</b></p>
+      <p style="margin:8px 0 0;font-size:14.5px">The second review is unmistakably from a departing customer, yet the sentiment model rates it as probably positive — even more so now that character n-grams pulled its billing-language score down to <b>0.165</b>. It has no billing vocabulary to reason with. The urgency engine scored the same text at <b>0.842</b>. This is the concrete reason the two scorers exist: <b>each covers the other's blind spot.</b> (That 0.165 is also why the routing floor in stage 10 has to sit at 0.1, not 0.2 — a higher floor would let this unreliable score veto the reliable one.)</p>
     </div>
   </div>
 
@@ -287,7 +299,7 @@ POST /review   { <span class="s">"text"</span>: <span class="s">"Charged twice, 
     <h2>Business routing</h2>
     <span class="file">src/urgency.py — <code>route()</code> · src/threshold.py</span>
     <p>The two scores resolve into an action. This is where a prediction becomes a business decision.</p>
-    <pre><span class="k">if</span> urgency &gt;= <span class="n">0.4</span> <span class="k">and</span> p_negative &gt;= <span class="n">0.2</span>:  <span class="k">return</span> <span class="s">"support_urgent"</span>
+    <pre><span class="k">if</span> urgency &gt;= <span class="n">0.4</span> <span class="k">and</span> p_negative &gt;= <span class="n">0.1</span>:  <span class="k">return</span> <span class="s">"support_urgent"</span>
 <span class="k">if</span> p_negative &gt;= <span class="n">0.5</span>:                    <span class="k">return</span> <span class="s">"feedback_backlog"</span>
 <span class="k">return</span> <span class="s">"analytics"</span></pre>
     <table>
@@ -297,10 +309,10 @@ POST /review   { <span class="s">"text"</span>: <span class="s">"Charged twice, 
       <tr><td>Neither</td><td><span class="route r-anal">analytics</span></td><td>trend reporting, no intervention</td></tr>
     </table>
     <h3 style="font-size:16px;margin-top:16px">Why urgency escalates independently</h3>
-    <p>Explicit churn intent is a support event regardless of the sentiment score. Sentiment acts only as a <b>floor</b> (<code>≥ 0.2</code>), which prevents a churn term inside praise — <i>"I'd never cancel, I love it"</i> — from paging an agent.</p>
-    <div class="warn"><b>This ordering was originally wrong, and the defect was real.</b> The first implementation evaluated sentiment first and returned <code>analytics</code> whenever <code>P(negative) &lt; 0.5</code>. Because the sentiment model is out of domain on billing language, it scored a customer writing <i>"Charged twice, I want a REFUND, cancelling today!!!"</i> at 0.319 — and that unreliable score silently overruled an urgency of 0.828, routing a departing customer to analytics. <b>An unreliable component must not be able to veto a reliable one.</b> The fix inverts the precedence; a regression test named for the failure now guards it.</div>
+    <p>Explicit churn intent is a support event regardless of the sentiment score. Sentiment acts only as a low <b>floor</b> (<code>≥ 0.1</code>), and even that job is mostly held upstream: negation scope in the urgency engine strips a churn word inside praise — <i>"I'd never cancel, I love it"</i> — before it ever reaches the router. The floor's sole remaining duty is a churn word inside <i>confident</i> praise (p_negative &lt; 0.1), the one regime where this movie-trained model is reliable.</p>
+    <div class="warn"><b>This ordering was originally wrong, and the defect was real.</b> The first implementation evaluated sentiment first and returned <code>analytics</code> whenever <code>P(negative) &lt; 0.5</code>. Because the sentiment model is out of domain on billing language, it scored a customer writing <i>"Charged twice, I want a REFUND, cancelling today!!!"</i> at 0.165 — and that unreliable score silently overruled an urgency of 0.842, routing a departing customer to analytics. <b>An unreliable component must not be able to veto a reliable one.</b> The fix escalates on urgency independently; because the guarding floor sits only 0.1 above where the model scores such reviews, regression tests now drive the real model on four phrasings rather than trusting a constant.</div>
     <h3 style="font-size:16px;margin-top:16px">Where the 0.5 threshold comes from</h3>
-    <p>It does not come from the model — it comes from the economics. Outreach costs <b>$1</b>; a retained customer is worth <b>$9</b>. Break-even precision is therefore <code>$1/$9 ≈ 11%</code>, and sweeping every threshold against expected profit puts the optimum at <b>0.44</b>, below the conventional 0.5. The threshold is a business parameter, recomputed whenever costs change.</p>
+    <p>It does not come from the model — it comes from the economics. Outreach costs <b>$1</b>; a retained customer is worth <b>$9</b>. Break-even precision is therefore <code>$1/$9 ≈ 11%</code>, and sweeping every threshold against expected profit puts the optimum at <b>0.43</b>, below the conventional 0.5. The threshold is a business parameter, recomputed whenever costs change.</p>
     <div class="note"><b>End to end:</b> a public dataset → normalised text → a sparse vector → a fitted linear model → a held-out measurement → a tracked experiment → a serialised artifact → an HTTP service → two independent scores → <b>a support agent contacting a customer before they leave.</b></div>
   </div>
 </div>

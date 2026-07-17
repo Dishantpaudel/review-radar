@@ -503,11 +503,11 @@
             <!-- feedback_backlog: p>=.5, urg<.4 -->
             <rect class="zone" id="z-b" x="164" y="114.8" width="126" height="67.2"
                   fill="url(#z-backlog)" stroke="rgba(245,165,36,.3)"/>
-            <!-- support_urgent: p>=.2, urg>=.4 -->
-            <rect class="zone" id="z-u" x="88.4" y="14" width="201.6" height="100.8"
+            <!-- support_urgent: p>=.1 (clearly_positive floor), urg>=.4 -->
+            <rect class="zone" id="z-u" x="63.2" y="14" width="226.8" height="100.8"
                   fill="url(#z-urgent)" stroke="rgba(255,59,71,.34)"/>
 
-            <line class="zline" x1="88.4" y1="14" x2="88.4" y2="182"/>
+            <line class="zline" x1="63.2" y1="14" x2="63.2" y2="182"/>
             <line class="zline" x1="164" y1="114.8" x2="164" y2="182"/>
             <line class="zline" x1="38" y1="114.8" x2="290" y2="114.8"/>
 
@@ -519,7 +519,7 @@
             <line class="axis" x1="38" y1="14" x2="38" y2="182"/>
 
             <text class="atick" x="38" y="192" text-anchor="middle">0</text>
-            <text class="atick" x="88.4" y="192" text-anchor="middle">.2</text>
+            <text class="atick" x="63.2" y="192" text-anchor="middle">.1</text>
             <text class="atick" x="164" y="192" text-anchor="middle">.5</text>
             <text class="atick" x="290" y="192" text-anchor="middle">1</text>
             <text class="atick" x="32" y="185" text-anchor="end">0</text>
@@ -610,7 +610,7 @@
   const COPY = {
     support_urgent: r =>
       `Urgency <code>${f2(r.urgency)}</code> ≥ <code>0.40</code> and sentiment is not clearly positive ` +
-      `(<code>${f2(r.p_negative)}</code> ≥ <code>0.20</code>). Escalated on urgency alone — the sentiment ` +
+      `(<code>${f2(r.p_negative)}</code> ≥ <code>0.10</code>). Escalated on urgency alone — the sentiment ` +
       `model is out of domain on billing language and never gets to veto this.`,
     feedback_backlog: r =>
       `Negative (<code>${f2(r.p_negative)}</code> ≥ <code>0.50</code>) but calm ` +

@@ -37,22 +37,31 @@ def test_urgency_is_not_vetoed_by_an_unsure_sentiment_score():
     assert route(p_negative=0.238, urgency=0.828) == "support_urgent"
 
 
-def test_flagship_churn_still_escalates_end_to_end():
-    """The same defect, asserted against the real model instead of a constant.
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Charged twice and nobody replied. I want a REFUND, cancelling today!!!",
+        "Charged twice, I want a REFUND, cancelling today!!!",  # scores ~0.17 -> was dropped by the 0.2 floor
+        "cancel my subscription, billed twice",
+        "want to cancle my subscribtion, charged twice",
+    ],
+)
+def test_flagship_churn_still_escalates_end_to_end(text):
+    """The routing defect, asserted against the real model instead of a constant.
 
-    The unit test above pins route(); it cannot notice if the *model* moves.
-    That matters more than it looks: this review's p_negative is only 0.238 and
-    the clearly_positive floor is 0.20, so the whole escalation survives on
-    0.038 of margin. Retraining moved this number once already (0.319 -> 0.238
-    when character n-grams were added). If a future retrain pushes it under
-    0.20, the floor silently vetoes the flagship case -- exactly the bug this
-    project is named for -- and every unit test here would still pass.
+    The unit tests above pin route(); they cannot notice if the *model* moves.
+    That matters here: char n-grams pulled billing-language sentiment down far
+    enough that the shorter phrasing scores only ~0.17. With the old
+    clearly_positive floor of 0.2, that review -- an unmistakably churning
+    customer -- routed to analytics, the exact bug this project is named for,
+    while every constant-based unit test kept passing. The floor is now 0.1 and
+    this drives the real model, so a regression in either the model or the floor
+    is caught.
     """
     from src.predict import score_review
 
-    result = score_review("Charged twice and nobody replied. I want a REFUND, cancelling today!!!")
-    assert result["route"] == "support_urgent"
-    assert result["p_negative"] < 0.5, "still out of domain: sentiment alone would not flag this"
+    result = score_review(text)
+    assert result["route"] == "support_urgent", f"{text!r} -> {result['route']} (p={result['p_negative']})"
     assert result["urgency"] >= 0.4, "urgency is what escalates it"
 
 

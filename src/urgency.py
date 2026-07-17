@@ -239,7 +239,7 @@ def route(
     urgency: float,
     negative_threshold: float = 0.5,
     urgency_threshold: float = 0.4,
-    clearly_positive: float = 0.2,
+    clearly_positive: float = 0.1,
 ) -> str:
     """Routing matrix — who actually needs intervention.
 
@@ -253,14 +253,27 @@ def route(
 
     The reason is a real weakness of this system: the sentiment model is trained
     on IMDB *movie* reviews, so it is out of domain on billing language and
-    scores "Charged twice, cancelling today!!!" at only 0.319. Checking
-    sentiment first let that unreliable score veto the urgency engine — which is
-    purpose-built for exactly this language — and dropped a churning customer
-    into analytics. An unreliable component must not overrule a reliable one.
+    scores "Charged twice, I want a REFUND, cancelling today!!!" at only ~0.17.
+    Checking sentiment first let that unreliable score veto the urgency engine --
+    which is purpose-built for exactly this language -- and dropped a churning
+    customer into analytics. An unreliable component must not overrule a reliable
+    one.
 
-    The `clearly_positive` floor is the guard in the other direction: it stops a
-    churn keyword inside praise ("I love this, I'd never cancel") from paging a
-    support agent.
+    The `clearly_positive` floor is the guard in the other direction, and it is
+    deliberately LOW (0.1). Its original job -- stopping a churn word inside
+    praise ("I love this, I'd never cancel") from paging an agent -- is now done
+    upstream by negation scope in `urgency_score`, which strips the churn signal
+    entirely so those reviews arrive here with urgency 0. What the floor still
+    guards is the residual case negation cannot see: a churn keyword sitting in
+    unmistakably positive text with no negator ("best film ever, I cancelled
+    everything else to make time for it"). That only happens when the model is
+    *confident* the text is positive, and confident-positive is the one regime
+    where this sentiment model is actually reliable -- clearly positive movie
+    reviews are squarely in domain. So the floor trusts sentiment exactly where
+    sentiment is trustworthy and nowhere else. It was 0.2 until char n-grams
+    pulled billing-language scores down far enough that 0.2 began vetoing real
+    churn (the flagship case above scores 0.17); 0.1 restores the margin without
+    reopening the praise hole, which negation now holds shut.
     """
     if urgency >= urgency_threshold and p_negative >= clearly_positive:
         return "support_urgent"
