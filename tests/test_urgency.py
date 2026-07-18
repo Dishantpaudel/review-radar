@@ -37,6 +37,7 @@ def test_urgency_is_not_vetoed_by_an_unsure_sentiment_score():
     assert route(p_negative=0.238, urgency=0.828) == "support_urgent"
 
 
+@pytest.mark.needs_model
 @pytest.mark.parametrize(
     "text",
     [

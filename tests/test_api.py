@@ -1,9 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from src.predict import MODEL_PATH
-
-pytestmark = pytest.mark.skipif(not MODEL_PATH.exists(), reason="model not trained yet")
+# The whole file drives the live app, whose lifespan loads the model.
+pytestmark = pytest.mark.needs_model
 
 
 @pytest.fixture(scope="module")

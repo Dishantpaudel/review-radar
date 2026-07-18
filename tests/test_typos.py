@@ -98,6 +98,7 @@ def test_collision_guard_is_not_empty():
 # sentiment model: typos and negation
 # --------------------------------------------------------------------------
 
+@pytest.mark.needs_model
 @pytest.mark.parametrize(
     "text",
     [
@@ -116,6 +117,7 @@ def test_misspelled_negative_reads_as_negative(text):
     assert result["p_negative"] > 0.5, f"{text!r} -> p_negative={result['p_negative']}"
 
 
+@pytest.mark.needs_model
 def test_clean_spelling_still_works():
     """Character n-grams must not cost anything on correctly spelled text."""
     assert score_review("this movie was bad")["p_negative"] > 0.5

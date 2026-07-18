@@ -16,3 +16,6 @@ __pycache__/
 
 # Personal reference doc — kept local, not part of the published project
 explanation.html
+
+# generated demo model (embedded into presentation.html by scripts/export_demo_model.py)
+scripts/demo_model.json
